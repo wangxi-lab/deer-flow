@@ -178,6 +178,7 @@ export interface Translations {
     reportIssue: string;
     contactUs: string;
     about: string;
+    signOut: string;
   };
 
   // Conversation

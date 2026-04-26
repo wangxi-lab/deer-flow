@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.gateway.auth import PasswordAuthMiddleware
 from app.gateway.config import get_gateway_config
 from app.gateway.deps import langgraph_runtime
 from app.gateway.routers import (
@@ -170,6 +171,7 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     )
 
     # CORS is handled by nginx - no need for FastAPI middleware
+    app.add_middleware(PasswordAuthMiddleware)
 
     # Include routers
     # Models API is mounted at /api/models

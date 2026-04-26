@@ -27,9 +27,29 @@ from deerflow.config.token_usage_config import TokenUsageConfig
 from deerflow.config.tool_config import ToolConfig, ToolGroupConfig
 from deerflow.config.tool_search_config import ToolSearchConfig, load_tool_search_config_from_dict
 
-load_dotenv()
-
 logger = logging.getLogger(__name__)
+
+
+def _default_env_candidates() -> tuple[Path, ...]:
+    """Return deterministic .env locations without relying on cwd."""
+    backend_dir = Path(__file__).resolve().parents[4]
+    repo_root = backend_dir.parent
+    return (backend_dir / ".env", repo_root / ".env")
+
+
+def _load_env_files() -> None:
+    """Load DeerFlow .env files in a deterministic order.
+
+    MCP stdio servers can start with a different cwd than the main dev process,
+    so a bare load_dotenv() may miss the repository-root .env on deployed
+    hosts. Keep override disabled so real process env vars still win.
+    """
+    load_dotenv(override=False)
+    for path in _default_env_candidates():
+        load_dotenv(path, override=False)
+
+
+_load_env_files()
 
 
 class CircuitBreakerConfig(BaseModel):
@@ -108,6 +128,7 @@ class AppConfig(BaseModel):
         Returns:
             AppConfig: The loaded config.
         """
+        _load_env_files()
         resolved_path = cls.resolve_config_path(config_path)
         with open(resolved_path, encoding="utf-8") as f:
             config_data = yaml.safe_load(f) or {}

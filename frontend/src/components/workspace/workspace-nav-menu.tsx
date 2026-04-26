@@ -5,6 +5,7 @@ import {
   ChevronsUpDown,
   GlobeIcon,
   InfoIcon,
+  LogOutIcon,
   MailIcon,
   Settings2Icon,
   SettingsIcon,
@@ -58,10 +59,27 @@ export function WorkspaceNavMenu() {
   const [mounted, setMounted] = useState(false);
   const { open: isSidebarOpen } = useSidebar();
   const { t } = useI18n();
+  const [authEnabled, setAuthEnabled] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    fetch("/api/password-auth/session")
+      .then((response) => response.json())
+      .then((payload: { enabled?: boolean }) => {
+        setAuthEnabled(Boolean(payload.enabled));
+      })
+      .catch(() => {
+        setAuthEnabled(false);
+      });
+  }, []);
+
+  async function handleSignOut() {
+    await fetch("/api/password-auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
 
   return (
     <>
@@ -146,6 +164,15 @@ export function WorkspaceNavMenu() {
                   <InfoIcon />
                   {t.workspace.about}
                 </DropdownMenuItem>
+                {authEnabled && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      <LogOutIcon />
+                      {t.workspace.signOut}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

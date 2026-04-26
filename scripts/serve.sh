@@ -197,6 +197,30 @@ fi
 
 FRONTEND_ENV_LOCAL="$REPO_ROOT/frontend/.env.local"
 ENV_KEY="NEXT_PUBLIC_LANGGRAPH_BASE_URL"
+ROOT_ENV_FILE="$REPO_ROOT/.env"
+AUTH_ENV_KEYS="DEERFLOW_AUTH_ENABLED DEERFLOW_AUTH_USERNAME DEERFLOW_AUTH_PASSWORD DEERFLOW_AUTH_SECRET DEERFLOW_AUTH_SESSION_MAX_AGE_SECONDS BETTER_AUTH_SECRET"
+
+get_env_file_value() {
+    local key="$1"
+    if [ -z "$ROOT_ENV_FILE" ] || [ ! -f "$ROOT_ENV_FILE" ]; then
+        return 1
+    fi
+    grep -m1 "^${key}=" "$ROOT_ENV_FILE" | sed "s|^${key}=||"
+}
+
+upsert_frontend_env() {
+    local key="$1"
+    local value="$2"
+    if [ -z "$value" ]; then
+        return 0
+    fi
+    touch "$FRONTEND_ENV_LOCAL"
+    if grep -q "^${key}=" "$FRONTEND_ENV_LOCAL"; then
+        sed -i.bak "s|^${key}=.*|${key}=${value}|" "$FRONTEND_ENV_LOCAL" && rm -f "${FRONTEND_ENV_LOCAL}.bak"
+    else
+        echo "${key}=${value}" >> "$FRONTEND_ENV_LOCAL"
+    fi
+}
 
 sync_frontend_env() {
     if $GATEWAY_MODE; then
@@ -212,6 +236,14 @@ sync_frontend_env() {
             sed -i.bak "/^${ENV_KEY}=/d" "$FRONTEND_ENV_LOCAL" && rm -f "${FRONTEND_ENV_LOCAL}.bak"
         fi
     fi
+
+    for key in $AUTH_ENV_KEYS; do
+        value="${!key:-}"
+        if [ -z "$value" ]; then
+            value="$(get_env_file_value "$key" || true)"
+        fi
+        upsert_frontend_env "$key" "$value"
+    done
 }
 
 sync_frontend_env

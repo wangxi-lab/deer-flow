@@ -6,8 +6,9 @@ from pathlib import Path
 
 import yaml
 
+from deerflow.config import app_config as app_config_module
 from deerflow.config.agents_api_config import get_agents_api_config
-from deerflow.config.app_config import get_app_config, reset_app_config
+from deerflow.config.app_config import AppConfig, get_app_config, reset_app_config
 
 
 def _write_config(path: Path, *, model_name: str, supports_thinking: bool) -> None:
@@ -139,3 +140,37 @@ def test_get_app_config_resets_agents_api_config_when_section_removed(tmp_path, 
         assert get_agents_api_config().enabled is False
     finally:
         reset_app_config()
+
+
+def test_app_config_loads_env_file_without_relying_on_cwd(tmp_path, monkeypatch):
+    config_path = tmp_path / "config.yaml"
+    extensions_path = tmp_path / "extensions_config.json"
+    env_path = tmp_path / ".env"
+    _write_extensions_config(extensions_path)
+    env_path.write_text("TEST_DOTENV_MODEL_KEY=from-dotenv-file\n", encoding="utf-8")
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "sandbox": {"use": "deerflow.sandbox.local:LocalSandboxProvider"},
+                "models": [
+                    {
+                        "name": "dotenv-model",
+                        "use": "langchain_openai:ChatOpenAI",
+                        "model": "gpt-test",
+                        "api_key": "$TEST_DOTENV_MODEL_KEY",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.delenv("TEST_DOTENV_MODEL_KEY", raising=False)
+    monkeypatch.setenv("DEER_FLOW_EXTENSIONS_CONFIG_PATH", str(extensions_path))
+    monkeypatch.setattr(app_config_module, "_default_env_candidates", lambda: (env_path,))
+    (tmp_path / "missing-cwd").mkdir()
+    monkeypatch.chdir(tmp_path / "missing-cwd")
+
+    config = AppConfig.from_file(str(config_path))
+
+    assert config.models[0].api_key == "from-dotenv-file"

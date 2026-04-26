@@ -121,6 +121,26 @@ That prompt is intended for coding agents. It tells the agent to clone the repo 
    > **Advanced / manual configuration**: If you prefer to edit `config.yaml` directly, run `make config` instead to copy the full template. See `config.example.yaml` for the complete reference including CLI-backed providers (Codex CLI, Claude Code OAuth), OpenRouter, Responses API, and more.
 
    <details>
+   <summary>Optional password login</summary>
+
+   DeerFlow can protect the web workspace with a single local username/password.
+   Set these environment variables before starting the frontend:
+
+   ```bash
+   DEERFLOW_AUTH_ENABLED=true
+   DEERFLOW_AUTH_USERNAME=admin
+   DEERFLOW_AUTH_PASSWORD=change-me
+   BETTER_AUTH_SECRET=replace-with-a-long-random-secret
+   ```
+
+   When enabled, `/workspace/*` redirects to `/login` until the user signs in.
+   This lightweight auth layer protects the web UI. If you expose DeerFlow
+   publicly, also put nginx, a cloud load balancer, or the backend services
+   behind authentication so direct API endpoints are protected too.
+
+   </details>
+
+   <details>
    <summary>Manual model configuration examples</summary>
 
    ```yaml

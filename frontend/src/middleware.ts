@@ -1,13 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
-  isPasswordAuthEnabled,
   PASSWORD_AUTH_COOKIE,
   verifyPasswordAuthSession,
 } from "@/server/password-auth";
 
+function isPasswordAuthEnabledForMiddleware(): boolean {
+  const publicEnabled = process.env.NEXT_PUBLIC_DEERFLOW_AUTH_ENABLED?.trim().toLowerCase();
+  const serverEnabled = process.env.DEERFLOW_AUTH_ENABLED?.trim().toLowerCase();
+  if (publicEnabled === "false" || serverEnabled === "false") {
+    return false;
+  }
+  return (
+    publicEnabled === "true" ||
+    serverEnabled === "true" ||
+    Boolean(process.env.DEERFLOW_AUTH_PASSWORD)
+  );
+}
+
 export async function middleware(request: NextRequest) {
-  if (!isPasswordAuthEnabled()) {
+  if (!isPasswordAuthEnabledForMiddleware()) {
     return NextResponse.next();
   }
 

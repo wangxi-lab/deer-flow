@@ -198,7 +198,7 @@ fi
 FRONTEND_ENV_LOCAL="$REPO_ROOT/frontend/.env.local"
 ENV_KEY="NEXT_PUBLIC_LANGGRAPH_BASE_URL"
 ROOT_ENV_FILE="$REPO_ROOT/.env"
-AUTH_ENV_KEYS="DEERFLOW_AUTH_ENABLED DEERFLOW_AUTH_USERNAME DEERFLOW_AUTH_PASSWORD DEERFLOW_AUTH_SECRET DEERFLOW_AUTH_SESSION_MAX_AGE_SECONDS BETTER_AUTH_SECRET"
+AUTH_ENV_KEYS="DEERFLOW_AUTH_ENABLED DEERFLOW_AUTH_USERNAME DEERFLOW_AUTH_PASSWORD DEERFLOW_AUTH_SECRET DEERFLOW_AUTH_SESSION_MAX_AGE_SECONDS BETTER_AUTH_SECRET NEXT_PUBLIC_DEERFLOW_AUTH_ENABLED"
 
 get_env_file_value() {
     local key="$1"
@@ -241,6 +241,14 @@ sync_frontend_env() {
         value="${!key:-}"
         if [ -z "$value" ]; then
             value="$(get_env_file_value "$key" || true)"
+        fi
+        if [ "$key" = "NEXT_PUBLIC_DEERFLOW_AUTH_ENABLED" ] && [ -z "$value" ]; then
+            auth_enabled="${DEERFLOW_AUTH_ENABLED:-$(get_env_file_value "DEERFLOW_AUTH_ENABLED" || true)}"
+            auth_password="${DEERFLOW_AUTH_PASSWORD:-$(get_env_file_value "DEERFLOW_AUTH_PASSWORD" || true)}"
+            auth_enabled="$(printf "%s" "$auth_enabled" | tr '[:upper:]' '[:lower:]')"
+            if [ "$auth_enabled" = "true" ] || { [ "$auth_enabled" != "false" ] && [ -n "$auth_password" ]; }; then
+                value="true"
+            fi
         fi
         upsert_frontend_env "$key" "$value"
     done

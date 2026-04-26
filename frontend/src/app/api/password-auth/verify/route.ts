@@ -7,8 +7,13 @@ import {
   PASSWORD_AUTH_COOKIE,
   verifyPasswordAuthSession,
 } from "@/server/password-auth";
+import { loadPasswordAuthEnv } from "@/server/password-auth-env";
+
+export const runtime = "nodejs";
 
 export async function GET() {
+  loadPasswordAuthEnv();
+
   if (!isPasswordAuthEnabled()) {
     return new NextResponse(null, { status: 204 });
   }

@@ -9,8 +9,13 @@ import {
   PASSWORD_AUTH_COOKIE,
   verifyPasswordCredentials,
 } from "@/server/password-auth";
+import { loadPasswordAuthEnv } from "@/server/password-auth-env";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  loadPasswordAuthEnv();
+
   if (!isPasswordAuthEnabled()) {
     return NextResponse.json({ ok: false, error: "AUTH_DISABLED" }, { status: 400 });
   }

@@ -293,6 +293,7 @@ async def start_run(
         _CONTEXT_CONFIGURABLE_KEYS = {
             "model_name",
             "rag_resource_ids",
+            "selected_skill_names",
             "mode",
             "thinking_enabled",
             "reasoning_effort",

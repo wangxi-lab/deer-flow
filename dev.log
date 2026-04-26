@@ -51,7 +51,7 @@ Syncing dependencies...
 Starting LangGraph...
   Waiting for LangGraph on port 2024... 0s                                                              ✓ LangGraph started on localhost:2024
 Starting Gateway...
-  Waiting for Gateway on port 8001... 0s                                                              ✓ Gateway started on localhost:8001
+                                                              ✓ Gateway started on localhost:8001
 Starting Frontend...
                                                               ✓ Frontend started on localhost:3000
 Starting Nginx...

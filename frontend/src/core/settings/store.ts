@@ -3,12 +3,15 @@ import {
   LOCAL_SETTINGS_KEY,
   THREAD_MODEL_KEY_PREFIX,
   THREAD_RAG_RESOURCES_KEY_PREFIX,
+  THREAD_SELECTED_SKILLS_KEY_PREFIX,
   getLocalSettings,
   getThreadModelName,
   getThreadRAGResourceIds,
+  getThreadSelectedSkillNames,
   saveLocalSettings,
   saveThreadModelName,
   saveThreadRAGResourceIds,
+  saveThreadSelectedSkillNames,
   type LocalSettings,
 } from "./local";
 
@@ -22,6 +25,7 @@ export type LocalSettingsSetter = <K extends keyof LocalSettings>(
 const listeners = new Set<Listener>();
 const threadModelNames = new Map<string, string | undefined>();
 const threadRagResourceIds = new Map<string, string[] | undefined>();
+const threadSelectedSkillNames = new Map<string, string[] | undefined>();
 
 let baseSettings: LocalSettings = DEFAULT_LOCAL_SETTINGS;
 let baseSettingsLoaded = false;
@@ -76,6 +80,7 @@ function handleStorage(event: StorageEvent) {
     baseSettings = getLocalSettings();
     threadModelNames.clear();
     threadRagResourceIds.clear();
+    threadSelectedSkillNames.clear();
     emitChange();
     return;
   }
@@ -87,12 +92,20 @@ function handleStorage(event: StorageEvent) {
   }
 
   if (!event.key.startsWith(THREAD_MODEL_KEY_PREFIX)) {
-    if (!event.key.startsWith(THREAD_RAG_RESOURCES_KEY_PREFIX)) {
+    if (event.key.startsWith(THREAD_RAG_RESOURCES_KEY_PREFIX)) {
+      const threadId = event.key.slice(THREAD_RAG_RESOURCES_KEY_PREFIX.length);
+      threadRagResourceIds.set(threadId, getThreadRAGResourceIds(threadId));
+      emitChange();
       return;
     }
-    const threadId = event.key.slice(THREAD_RAG_RESOURCES_KEY_PREFIX.length);
-    threadRagResourceIds.set(threadId, getThreadRAGResourceIds(threadId));
-    emitChange();
+    if (event.key.startsWith(THREAD_SELECTED_SKILLS_KEY_PREFIX)) {
+      const threadId = event.key.slice(THREAD_SELECTED_SKILLS_KEY_PREFIX.length);
+      threadSelectedSkillNames.set(
+        threadId,
+        getThreadSelectedSkillNames(threadId),
+      );
+      emitChange();
+    }
     return;
   }
 
@@ -138,6 +151,18 @@ export function getThreadRAGResourceIdsSnapshot(
   return threadRagResourceIds.get(threadId);
 }
 
+export function getThreadSelectedSkillNamesSnapshot(
+  threadId: string,
+): string[] | undefined {
+  ensureBaseSettingsLoaded();
+
+  if (!threadSelectedSkillNames.has(threadId)) {
+    threadSelectedSkillNames.set(threadId, getThreadSelectedSkillNames(threadId));
+  }
+
+  return threadSelectedSkillNames.get(threadId);
+}
+
 export const updateLocalSettings: LocalSettingsSetter = (key, value) => {
   ensureBaseSettingsLoaded();
   ensureStorageListenerRegistered();
@@ -177,6 +202,16 @@ export function updateThreadSettings<K extends keyof LocalSettings>(
     const resourceIds = contextValue.rag_resource_ids;
     threadRagResourceIds.set(threadId, resourceIds);
     saveThreadRAGResourceIds(threadId, resourceIds);
+  }
+
+  if (
+    key === "context" &&
+    Object.prototype.hasOwnProperty.call(value, "selected_skill_names")
+  ) {
+    const contextValue = value as Partial<LocalSettings["context"]>;
+    const skillNames = contextValue.selected_skill_names;
+    threadSelectedSkillNames.set(threadId, skillNames);
+    saveThreadSelectedSkillNames(threadId, skillNames);
   }
 
   emitChange();

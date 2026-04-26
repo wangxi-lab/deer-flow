@@ -9,6 +9,7 @@ import {
   getBaseSettingsSnapshot,
   getThreadModelSnapshot,
   getThreadRAGResourceIdsSnapshot,
+  getThreadSelectedSkillNamesSnapshot,
   subscribe,
   updateLocalSettings,
   updateThreadSettings,
@@ -50,14 +51,21 @@ export function useThreadSettings(
     () => undefined,
   );
 
+  const threadSelectedSkillNames = useSyncExternalStore(
+    subscribe,
+    () => getThreadSelectedSkillNamesSnapshot(threadId),
+    () => undefined,
+  );
+
   const settings = useMemo(
     () =>
       applyThreadContextOverrides(
         baseSettings,
         threadModelName,
         threadRAGResourceIds,
+        threadSelectedSkillNames,
       ),
-    [baseSettings, threadModelName, threadRAGResourceIds],
+    [baseSettings, threadModelName, threadRAGResourceIds, threadSelectedSkillNames],
   );
 
   const setSettings = useCallback<LocalSettingsSetter>(

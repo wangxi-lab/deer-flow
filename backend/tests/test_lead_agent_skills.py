@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from deerflow.agents.lead_agent.prompt import get_skills_prompt_section
+from deerflow.agents.lead_agent.prompt import apply_prompt_template, get_skills_prompt_section
 from deerflow.config.agents_config import AgentConfig
 from deerflow.skills.types import Skill
 
@@ -52,6 +52,22 @@ def test_get_skills_prompt_section_returns_all_when_available_skills_is_none(mon
     result = get_skills_prompt_section(available_skills=None)
     assert "skill1" in result
     assert "skill2" in result
+
+
+def test_apply_prompt_template_includes_selected_skill_instruction(monkeypatch):
+    skills = [_make_skill("skill1"), _make_skill("skill2")]
+    monkeypatch.setattr("deerflow.agents.lead_agent.prompt._get_enabled_skills", lambda: skills)
+    monkeypatch.setattr("deerflow.agents.lead_agent.prompt._get_memory_context", lambda agent_name=None: "")
+    monkeypatch.setattr("deerflow.agents.lead_agent.prompt.get_deferred_tools_prompt_section", lambda: "")
+    monkeypatch.setattr("deerflow.agents.lead_agent.prompt._build_acp_section", lambda: "")
+    monkeypatch.setattr("deerflow.agents.lead_agent.prompt._build_custom_mounts_section", lambda: "")
+
+    result = apply_prompt_template(available_skills={"skill1"}, selected_skills=["skill1"])
+
+    assert "skill1" in result
+    assert "skill2" not in result
+    assert "<selected_skill_instruction>" in result
+    assert "MUST use the selected skill workflow" in result
 
 
 def test_get_skills_prompt_section_includes_self_evolution_rules(monkeypatch):
@@ -142,3 +158,8 @@ def test_make_lead_agent_empty_skills_passed_correctly(monkeypatch):
     monkeypatch.setattr(lead_agent_module, "load_agent_config", lambda x: AgentConfig(name="test", skills=["skill1"]))
     lead_agent_module.make_lead_agent({"configurable": {"agent_name": "test"}})
     assert captured_skills[-1] == {"skill1"}
+
+    # Case 4: UI-selected skill filters the prompt to the selected skill
+    monkeypatch.setattr(lead_agent_module, "load_agent_config", lambda x: AgentConfig(name="test", skills=None))
+    lead_agent_module.make_lead_agent({"configurable": {"agent_name": "test", "selected_skill_names": ["skill2"]}})
+    assert captured_skills[-1] == {"skill2"}

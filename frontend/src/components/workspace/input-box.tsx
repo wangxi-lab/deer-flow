@@ -60,6 +60,7 @@ import { getBackendBaseURL } from "@/core/config";
 import { useI18n } from "@/core/i18n/hooks";
 import { useModels } from "@/core/models/hooks";
 import { useRAGConfig, useRAGHealth, useRAGResources } from "@/core/rag";
+import { useSkills } from "@/core/skills/hooks";
 import type { AgentThreadContext } from "@/core/threads";
 import { textOfMessage } from "@/core/threads/utils";
 import { cn } from "@/lib/utils";
@@ -141,13 +142,17 @@ export function InputBox({
     },
   ) => void;
   onFollowupsVisibilityChange?: (visible: boolean) => void;
-  onSubmit?: (message: PromptInputMessage) => void;
+  onSubmit?: (
+    message: PromptInputMessage,
+    contextOverride?: Partial<AgentThreadContext>,
+  ) => void;
   onStop?: () => void;
 }) {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const { models } = useModels();
+  const { skills } = useSkills();
   const { data: ragConfig } = useRAGConfig();
   const { data: ragHealth } = useRAGHealth({
     enabled: ragConfig?.enabled ?? false,
@@ -263,6 +268,19 @@ export function InputBox({
     return value.filter((item): item is string => typeof item === "string");
   }, [context.rag_resource_ids]);
 
+  const selectedSkillNames = useMemo(() => {
+    const value = context.selected_skill_names;
+    if (!Array.isArray(value)) {
+      return [] as string[];
+    }
+    return value.filter((item): item is string => typeof item === "string");
+  }, [context.selected_skill_names]);
+
+  const selectableSkills = useMemo(
+    () => skills.filter((skill) => skill.enabled),
+    [skills],
+  );
+
   const ragResources = useMemo(() => {
     const apiResources = ragResourcesData?.resources ?? [];
     if (apiResources.length > 0) {
@@ -293,6 +311,7 @@ export function InputBox({
       onContextChange?.({
         ...context,
         rag_resource_ids: next,
+        selected_skill_names: [],
       });
     },
     [context, onContextChange, selectedRAGResourceIds],
@@ -302,6 +321,27 @@ export function InputBox({
     onContextChange?.({
       ...context,
       rag_resource_ids: [],
+    });
+  }, [context, onContextChange]);
+
+  const handleToggleSkill = useCallback(
+    (skillName: string, checked: boolean) => {
+      const next = checked
+        ? Array.from(new Set([...selectedSkillNames, skillName]))
+        : selectedSkillNames.filter((name) => name !== skillName);
+      onContextChange?.({
+        ...context,
+        selected_skill_names: next,
+        rag_resource_ids: next.length > 0 ? [] : context.rag_resource_ids,
+      });
+    },
+    [context, onContextChange, selectedSkillNames],
+  );
+
+  const handleClearSkills = useCallback(() => {
+    onContextChange?.({
+      ...context,
+      selected_skill_names: [],
     });
   }, [context, onContextChange]);
 
@@ -333,7 +373,11 @@ export function InputBox({
         return;
       }
 
-      onSubmit?.(message);
+      onSubmit?.(message, {
+        selected_skill_names: selectedSkillNames,
+        rag_resource_ids:
+          selectedSkillNames.length > 0 ? [] : selectedRAGResourceIds,
+      });
     },
     [
       context,
@@ -342,6 +386,8 @@ export function InputBox({
       onStop,
       resolvedModelName,
       selectedModel?.supports_thinking,
+      selectedRAGResourceIds,
+      selectedSkillNames,
       status,
     ],
   );
@@ -849,6 +895,63 @@ export function InputBox({
                   </DropdownMenuGroup>
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
+            )}
+            {selectableSkills.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <PromptInputButton className="gap-1 px-2!">
+                    <SparklesIcon
+                      className={cn(
+                        "size-3",
+                        selectedSkillNames.length > 0
+                          ? "text-sky-600"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                    <div className="text-xs font-normal">
+                      {selectedSkillNames.length > 0
+                        ? t.inputBox.skillSelected.replace(
+                            "{count}",
+                            String(selectedSkillNames.length),
+                          )
+                        : t.inputBox.skill}
+                    </div>
+                  </PromptInputButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80">
+                  <DropdownMenuLabel className="text-muted-foreground text-xs">
+                    {t.inputBox.skill}
+                  </DropdownMenuLabel>
+                  <div className="text-muted-foreground px-2 pb-2 text-xs">
+                    {t.inputBox.skillDescription}
+                  </div>
+                  <DropdownMenuSeparator />
+                  {selectableSkills.map((skill) => (
+                    <DropdownMenuCheckboxItem
+                      key={skill.name}
+                      checked={selectedSkillNames.includes(skill.name)}
+                      onCheckedChange={(checked) =>
+                        handleToggleSkill(skill.name, checked === true)
+                      }
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate">{skill.name}</span>
+                        <span className="text-muted-foreground truncate text-[10px]">
+                          {skill.description}
+                        </span>
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  {selectedSkillNames.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={handleClearSkills}>
+                        {t.inputBox.skillClear}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {ragEnabled && (
               <DropdownMenu>

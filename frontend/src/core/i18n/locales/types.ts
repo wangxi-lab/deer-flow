@@ -91,6 +91,10 @@ export interface Translations {
     knowledgeBaseEmpty: string;
     knowledgeBaseClear: string;
     knowledgeBaseSelected: string;
+    skill: string;
+    skillDescription: string;
+    skillClear: string;
+    skillSelected: string;
     surpriseMe: string;
     surpriseMePrompt: string;
     followupLoading: string;
@@ -206,6 +210,7 @@ export interface Translations {
       mcp: string;
       web: string;
       tool: string;
+      direct: string;
     };
     executeCommand: string;
     presentFiles: string;

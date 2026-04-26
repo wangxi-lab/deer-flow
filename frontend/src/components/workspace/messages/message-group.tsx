@@ -576,7 +576,7 @@ interface CoTToolCallStep extends GenericCoTStep<"toolCall"> {
 
 type CoTStep = CoTReasoningStep | CoTToolCallStep;
 
-type RouteKind = "rag" | "skillMcp" | "mcp" | "web" | "tool";
+type RouteKind = "rag" | "skillMcp" | "mcp" | "web" | "tool" | "direct";
 
 type RouteSummaryItem = {
   kind: RouteKind;
@@ -597,6 +597,7 @@ function buildRouteSummary(
     mcp: string;
     web: string;
     tool: string;
+    direct: string;
   },
 ): RouteSummaryItem[] {
   const toolSteps = steps.filter(
@@ -613,6 +614,15 @@ function buildRouteSummary(
     summaries.set(kind, { ...item, kind, count: 1 });
   }
 
+  if (toolSteps.length === 0) {
+    add("direct", {
+      label: labels.direct,
+      detail: "no_tool_call",
+      icon: LightbulbIcon,
+      className: "border-slate-200 bg-slate-50 text-slate-700",
+    });
+  }
+
   for (const step of toolSteps) {
     if (step.name === "local_search") {
       add("rag", {
@@ -621,7 +631,7 @@ function buildRouteSummary(
         icon: BookOpenTextIcon,
         className: "border-emerald-200 bg-emerald-50 text-emerald-700",
       });
-    } else if (step.name.startsWith("vikingdb_kb_")) {
+    } else if (step.name.startsWith("vikingdb_kb_") || isSkillRead(step)) {
       add("skillMcp", {
         label: labels.skillMcp,
         detail: step.name,
@@ -652,9 +662,17 @@ function buildRouteSummary(
     }
   }
 
-  return ["rag", "skillMcp", "mcp", "web", "tool"]
+  return ["rag", "skillMcp", "mcp", "web", "tool", "direct"]
     .map((kind) => summaries.get(kind as RouteKind))
     .filter((item): item is RouteSummaryItem => Boolean(item));
+}
+
+function isSkillRead(step: CoTToolCallStep): boolean {
+  if (step.name !== "read_file") {
+    return false;
+  }
+  const path = step.args.path;
+  return typeof path === "string" && path.includes("/mnt/skills/");
 }
 
 function convertToSteps(messages: Message[]): CoTStep[] {

@@ -14,6 +14,8 @@ export const DEFAULT_LOCAL_SETTINGS: LocalSettings = {
 export const LOCAL_SETTINGS_KEY = "deerflow.local-settings";
 export const THREAD_MODEL_KEY_PREFIX = "deerflow.thread-model.";
 export const THREAD_RAG_RESOURCES_KEY_PREFIX = "deerflow.thread-rag-resources.";
+export const THREAD_SELECTED_SKILLS_KEY_PREFIX =
+  "deerflow.thread-selected-skills.";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -34,6 +36,7 @@ export interface LocalSettings {
   > & {
     model_name?: string | undefined;
     rag_resource_ids?: string[] | undefined;
+    selected_skill_names?: string[] | undefined;
     mode: "flash" | "thinking" | "pro" | "ultra" | undefined;
     reasoning_effort?: "minimal" | "low" | "medium" | "high";
   };
@@ -59,6 +62,10 @@ function getThreadModelStorageKey(threadId: string): string {
 
 function getThreadRAGResourcesStorageKey(threadId: string): string {
   return `${THREAD_RAG_RESOURCES_KEY_PREFIX}${threadId}`;
+}
+
+function getThreadSelectedSkillsStorageKey(threadId: string): string {
+  return `${THREAD_SELECTED_SKILLS_KEY_PREFIX}${threadId}`;
 }
 
 export function getThreadModelName(threadId: string): string | undefined {
@@ -115,12 +122,47 @@ export function saveThreadRAGResourceIds(
   localStorage.setItem(key, JSON.stringify(resourceIds));
 }
 
+export function getThreadSelectedSkillNames(
+  threadId: string,
+): string[] | undefined {
+  if (!isBrowser()) {
+    return undefined;
+  }
+  const raw = localStorage.getItem(getThreadSelectedSkillsStorageKey(threadId));
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string");
+    }
+  } catch {}
+  return undefined;
+}
+
+export function saveThreadSelectedSkillNames(
+  threadId: string,
+  skillNames: string[] | undefined,
+) {
+  if (!isBrowser()) {
+    return;
+  }
+  const key = getThreadSelectedSkillsStorageKey(threadId);
+  if (!skillNames || skillNames.length === 0) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify(skillNames));
+}
+
 export function applyThreadContextOverrides(
   settings: LocalSettings,
   threadModelName: string | undefined,
   threadRAGResourceIds: string[] | undefined,
+  threadSelectedSkillNames: string[] | undefined,
 ): LocalSettings {
-  if (!threadModelName && !threadRAGResourceIds) {
+  if (!threadModelName && !threadRAGResourceIds && !threadSelectedSkillNames) {
     return settings;
   }
   return {
@@ -129,6 +171,9 @@ export function applyThreadContextOverrides(
       ...settings.context,
       ...(threadModelName ? { model_name: threadModelName } : {}),
       ...(threadRAGResourceIds ? { rag_resource_ids: threadRAGResourceIds } : {}),
+      ...(threadSelectedSkillNames
+        ? { selected_skill_names: threadSelectedSkillNames }
+        : {}),
     },
   };
 }

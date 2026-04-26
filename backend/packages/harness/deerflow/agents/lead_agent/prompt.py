@@ -675,7 +675,14 @@ def _build_custom_mounts_section() -> str:
     return f"\n**Custom Mounted Directories:**\n{mounts_list}\n- If the user needs files outside `/mnt/user-data`, use these absolute container paths directly when they match the requested directory"
 
 
-def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagents: int = 3, *, agent_name: str | None = None, available_skills: set[str] | None = None) -> str:
+def apply_prompt_template(
+    subagent_enabled: bool = False,
+    max_concurrent_subagents: int = 3,
+    *,
+    agent_name: str | None = None,
+    available_skills: set[str] | None = None,
+    selected_skills: list[str] | None = None,
+) -> str:
     # Get memory context
     memory_context = _get_memory_context(agent_name)
 
@@ -703,6 +710,16 @@ def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagen
 
     # Get skills section
     skills_section = get_skills_prompt_section(available_skills)
+    if selected_skills and skills_section:
+        selected_names = ", ".join(f"`{name}`" for name in selected_skills)
+        skills_section += (
+            "\n<selected_skill_instruction>\n"
+            f"The user explicitly selected these skill(s) for this turn: {selected_names}.\n"
+            "You MUST use the selected skill workflow before answering. "
+            "Read the selected skill's SKILL.md file via `read_file`, follow its instructions, "
+            "and do not substitute a different route unless the selected skill is unavailable.\n"
+            "</selected_skill_instruction>"
+        )
 
     # Get deferred tools section (tool_search)
     deferred_tools_section = get_deferred_tools_prompt_section()

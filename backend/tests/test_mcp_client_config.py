@@ -1,5 +1,7 @@
 """Core behavior tests for MCP client server config building."""
 
+import os
+
 import pytest
 
 from deerflow.config.extensions_config import ExtensionsConfig, McpServerConfig
@@ -7,6 +9,7 @@ from deerflow.mcp.client import build_server_params, build_servers_config
 
 
 def test_build_server_params_stdio_success():
+    os.environ["MCP_PARENT_ENV_TEST"] = "inherited"
     config = McpServerConfig(
         type="stdio",
         command="npx",
@@ -16,12 +19,12 @@ def test_build_server_params_stdio_success():
 
     params = build_server_params("my-server", config)
 
-    assert params == {
-        "transport": "stdio",
-        "command": "npx",
-        "args": ["-y", "my-mcp-server"],
-        "env": {"API_KEY": "secret"},
-    }
+    assert params["transport"] == "stdio"
+    assert params["command"] == "npx"
+    assert params["args"] == ["-y", "my-mcp-server"]
+    assert params["cwd"].endswith("backend")
+    assert params["env"]["MCP_PARENT_ENV_TEST"] == "inherited"
+    assert params["env"]["API_KEY"] == "secret"
 
 
 def test_build_server_params_stdio_requires_command():

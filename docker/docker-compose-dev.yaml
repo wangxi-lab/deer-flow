@@ -105,6 +105,7 @@ services:
       - ../frontend/src:/app/frontend/src
       - ../frontend/public:/app/frontend/public
       - ../frontend/next.config.js:/app/frontend/next.config.js:ro
+      - ../.env:/app/.env:ro
       - ../logs:/app/logs
       # Mount pnpm store for caching
       - ${PNPM_STORE_PATH:-~/.local/share/pnpm/store}:/root/.local/share/pnpm/store
@@ -142,6 +143,7 @@ services:
       # directory above would otherwise shadow it with the (empty) host directory.
       - gateway-venv:/app/backend/.venv
       - ../config.yaml:/app/config.yaml
+      - ../.env:/app/.env:ro
       - ../extensions_config.json:/app/extensions_config.json
       - ../skills:/app/skills
       - ../logs:/app/logs
@@ -201,6 +203,7 @@ services:
       # directory above would otherwise shadow it with the (empty) host directory.
       - langgraph-venv:/app/backend/.venv
       - ../config.yaml:/app/config.yaml
+      - ../.env:/app/.env:ro
       - ../extensions_config.json:/app/extensions_config.json
       - ../skills:/app/skills
       - ../logs:/app/logs

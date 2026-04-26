@@ -1,11 +1,19 @@
 """MCP client using langchain-mcp-adapters."""
 
 import logging
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
 from deerflow.config.extensions_config import ExtensionsConfig, McpServerConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _default_backend_cwd() -> str:
+    """Return the backend directory so stdio MCP servers resolve config consistently."""
+    return str(Path(__file__).resolve().parents[4])
 
 
 def build_server_params(server_name: str, config: McpServerConfig) -> dict[str, Any]:
@@ -24,11 +32,13 @@ def build_server_params(server_name: str, config: McpServerConfig) -> dict[str, 
     if transport_type == "stdio":
         if not config.command:
             raise ValueError(f"MCP server '{server_name}' with stdio transport requires 'command' field")
-        params["command"] = config.command
+        params["command"] = sys.executable if config.command in {"python", "python3"} else config.command
         params["args"] = config.args
-        # Add environment variables if present
-        if config.env:
-            params["env"] = config.env
+        params["cwd"] = _default_backend_cwd()
+        # The MCP SDK only inherits a subset of the parent environment when env
+        # is omitted. Pass the full environment explicitly so config.yaml values
+        # like $MINIMAX_API_KEY resolve inside stdio MCP subprocesses.
+        params["env"] = {**os.environ, **config.env}
     elif transport_type in ("sse", "http"):
         if not config.url:
             raise ValueError(f"MCP server '{server_name}' with {transport_type} transport requires 'url' field")

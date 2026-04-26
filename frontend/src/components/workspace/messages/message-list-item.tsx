@@ -440,7 +440,7 @@ function extractCitedKnowledgeBaseSources(
 
     if (previous.type === "ai") {
       for (const toolCall of previous.tool_calls ?? []) {
-        if (toolCall.name !== "local_search" || !toolCall.id) {
+        if (!isKnowledgeBaseSearchToolName(toolCall.name) || !toolCall.id) {
           continue;
         }
         const result = findToolCallResult(toolCall.id, allMessages);
@@ -476,6 +476,9 @@ function parseLocalSearchChunks(result: unknown): LocalSearchChunk[] {
   if (Array.isArray(result)) {
     return result.filter(isLocalSearchChunk);
   }
+  if (isMcpKnowledgeSearchPayload(result)) {
+    return result.chunks.filter(isLocalSearchChunk);
+  }
 
   if (typeof result !== "string") {
     return [];
@@ -483,10 +486,30 @@ function parseLocalSearchChunks(result: unknown): LocalSearchChunk[] {
 
   try {
     const parsed = JSON.parse(result);
-    return Array.isArray(parsed) ? parsed.filter(isLocalSearchChunk) : [];
+    if (Array.isArray(parsed)) {
+      return parsed.filter(isLocalSearchChunk);
+    }
+    if (isMcpKnowledgeSearchPayload(parsed)) {
+      return parsed.chunks.filter(isLocalSearchChunk);
+    }
+    return [];
   } catch {
     return [];
   }
+}
+
+function isKnowledgeBaseSearchToolName(name: string): boolean {
+  return name === "local_search" || name.endsWith("_search_knowledge");
+}
+
+function isMcpKnowledgeSearchPayload(
+  value: unknown,
+): value is { chunks: unknown[] } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as { chunks?: unknown }).chunks)
+  );
 }
 
 function isLocalSearchChunk(value: unknown): value is LocalSearchChunk {

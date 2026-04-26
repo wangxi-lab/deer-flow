@@ -23,18 +23,26 @@ does not require the user to select a knowledge base in the DeerFlow UI.
    knowledge gaps unless the user explicitly asks for a different mode.
 6. If the returned chunks do not provide enough evidence, say clearly:
    "知识库中未找到足够依据。"
-7. Keep the final answer grounded and cite sources at the end.
+7. Keep the final answer grounded. Use short inline citation markers such as
+   `[1]` and `[2]` when referring to specific evidence from returned chunks.
+8. Do not paste long source excerpts or manually build a verbose source
+   appendix. DeerFlow renders source cards from the MCP tool result, including
+   document title, relevance score, source link, and related chunk text.
 
-## Source Format
+## Source Handling
 
-At the end of the answer, include a compact source list. For each source, keep
-the title, `source_id`, and `source_uri` when available.
+The MCP tool result contains source metadata in `chunks`. The DeerFlow UI will
+render the final source cards from those chunks, so the answer should not
+duplicate the full chunk text.
+
+When a brief textual source note is useful, keep it compact and only include
+document titles or citation numbers.
 
 Example:
 
 ```text
-来源：
-[1] 标题：产品手册
-    source_id: doc-123
-    source_uri: https://example.com/manual
+根据知识库，Electron 应用通常可以使用 Electron Builder 或
+Electron Forge 打包。[1]
+
+来源：见下方 DeerFlow 自动渲染的知识库来源卡片。
 ```

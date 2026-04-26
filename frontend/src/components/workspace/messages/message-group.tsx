@@ -369,7 +369,7 @@ function ToolCall({
         )}
       </ChainOfThoughtStep>
     );
-  } else if (name === "local_search") {
+  } else if (isKnowledgeBaseSearchToolName(name)) {
     let description: string | undefined = (args as { description: string })
       ?.description;
     const query = (args as { query?: string })?.query;
@@ -533,18 +533,38 @@ function parseLocalSearchChunks(result: unknown): LocalSearchChunk[] {
   if (Array.isArray(result)) {
     return result.filter(isLocalSearchChunk);
   }
+  if (isMcpKnowledgeSearchPayload(result)) {
+    return result.chunks.filter(isLocalSearchChunk);
+  }
   if (typeof result !== "string") {
     return [];
   }
   try {
     const parsed = JSON.parse(result);
-    if (!Array.isArray(parsed)) {
-      return [];
+    if (Array.isArray(parsed)) {
+      return parsed.filter(isLocalSearchChunk);
     }
-    return parsed.filter(isLocalSearchChunk);
+    if (isMcpKnowledgeSearchPayload(parsed)) {
+      return parsed.chunks.filter(isLocalSearchChunk);
+    }
+    return [];
   } catch {
     return [];
   }
+}
+
+function isKnowledgeBaseSearchToolName(name: string): boolean {
+  return name === "local_search" || name.endsWith("_search_knowledge");
+}
+
+function isMcpKnowledgeSearchPayload(
+  value: unknown,
+): value is { chunks: unknown[] } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as { chunks?: unknown }).chunks)
+  );
 }
 
 function isLocalSearchChunk(value: unknown): value is LocalSearchChunk {

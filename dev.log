@@ -1,0 +1,72 @@
+==========================================
+  Checking Required Dependencies
+==========================================
+
+Checking Node.js...
+  OK Node.js 24.15.0 (>= 22 required)
+
+Checking pnpm...
+  OK pnpm 10.33.0
+
+Checking uv...
+  OK uv 0.11.7
+
+Checking nginx...
+  OK nginx 1.29.7
+
+==========================================
+  OK All dependencies are installed!
+==========================================
+
+You can now run:
+  make install  - Install project dependencies
+  make setup    - Create a minimal working config (recommended)
+  make config   - Copy the full config template (manual setup)
+  make doctor   - Verify config and dependency health
+  make dev      - Start development server
+  make start    - Start production server
+Detected Windows - using Git Bash...
+Stopping all services...
+Cleaning up sandbox containers with prefix: deer-flow-sandbox
+Docker not found, skipping...
+Apple Container not found, skipping...
+[0;32m✓ Container cleanup complete[0m
+✓ All services stopped
+OK config.yaml is already up to date (version 8).
+Syncing dependencies...
+✓ Dependencies synced
+
+==========================================
+  Starting DeerFlow
+==========================================
+
+  Mode: DEV (hot-reload enabled)
+
+  Services:
+    LangGraph   → localhost:2024  (agent runtime)
+    Gateway     → localhost:8001  (REST API)
+    Frontend    → localhost:3000  (Next.js)
+    Nginx       → localhost:2026  (reverse proxy)
+
+Starting LangGraph...
+  Waiting for LangGraph on port 2024... 0s                                                              ✓ LangGraph started on localhost:2024
+Starting Gateway...
+  Waiting for Gateway on port 8001... 0s                                                              ✓ Gateway started on localhost:8001
+Starting Frontend...
+                                                              ✓ Frontend started on localhost:3000
+Starting Nginx...
+                                                              ✓ Nginx started on localhost:2026
+
+==========================================
+  ✓ DeerFlow is running!  [DEV (hot-reload enabled)]
+==========================================
+
+  🌐 http://localhost:2026
+
+  Routing: Frontend → Nginx → LangGraph + Gateway
+  API:     /api/langgraph/*  →  LangGraph server (2024)
+           /api/*              →  Gateway REST API (8001)
+
+  📋 Logs: logs/{langgraph,gateway,frontend,nginx}.log
+
+  Press Ctrl+C to stop all services

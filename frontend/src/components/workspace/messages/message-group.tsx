@@ -2,6 +2,7 @@ import type { Message } from "@langchain/langgraph-sdk";
 import {
   BookOpenTextIcon,
   ChevronUp,
+  CircleDotDashedIcon,
   FolderOpenIcon,
   GlobeIcon,
   LightbulbIcon,
@@ -12,7 +13,7 @@ import {
   SquareTerminalIcon,
   WrenchIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 
 import {
   ChainOfThought,
@@ -65,6 +66,10 @@ export function MessageGroup({
     env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY === "true",
   );
   const steps = useMemo(() => convertToSteps(messages), [messages]);
+  const routeSummary = useMemo(
+    () => buildRouteSummary(steps, t.toolCalls.answerRouteLabels),
+    [steps, t.toolCalls.answerRouteLabels],
+  );
   const lastToolCallStep = useMemo(() => {
     const filteredSteps = steps.filter((step) => step.type === "toolCall");
     return filteredSteps[filteredSteps.length - 1];
@@ -91,6 +96,32 @@ export function MessageGroup({
       className={cn("w-full gap-2 rounded-lg border p-0.5", className)}
       open={true}
     >
+      {routeSummary.length > 0 && (
+        <div className="border-b px-4 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+              <CircleDotDashedIcon className="size-3.5" />
+              {t.toolCalls.answerRoute}
+            </div>
+            {routeSummary.map((item) => (
+              <span
+                key={item.kind}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs",
+                  item.className,
+                )}
+                title={item.detail}
+              >
+                <item.icon className="size-3" />
+                {item.label}
+                {item.count > 1 && (
+                  <span className="text-muted-foreground">x{item.count}</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {aboveLastToolCallSteps.length > 0 && (
         <Button
           key="above"
@@ -205,7 +236,7 @@ function ToolCall({
   messageId?: string;
   name: string;
   args: Record<string, unknown>;
-  result?: string | Record<string, unknown>;
+  result?: unknown;
   isLast?: boolean;
   isLoading?: boolean;
 }) {
@@ -495,9 +526,7 @@ function ToolCall({
   }
 }
 
-function parseLocalSearchChunks(
-  result: string | Record<string, unknown> | undefined,
-): LocalSearchChunk[] {
+function parseLocalSearchChunks(result: unknown): LocalSearchChunk[] {
   if (!result) {
     return [];
   }
@@ -542,10 +571,91 @@ interface CoTReasoningStep extends GenericCoTStep<"reasoning"> {
 interface CoTToolCallStep extends GenericCoTStep<"toolCall"> {
   name: string;
   args: Record<string, unknown>;
-  result?: string;
+  result?: unknown;
 }
 
 type CoTStep = CoTReasoningStep | CoTToolCallStep;
+
+type RouteKind = "rag" | "skillMcp" | "mcp" | "web" | "tool";
+
+type RouteSummaryItem = {
+  kind: RouteKind;
+  label: string;
+  detail: string;
+  count: number;
+  icon: ComponentType<{ className?: string }>;
+  className: string;
+};
+
+const MCP_NAME_RE = /^[a-zA-Z0-9-]+_[a-zA-Z0-9-]+_/;
+
+function buildRouteSummary(
+  steps: CoTStep[],
+  labels: {
+    rag: string;
+    skillMcp: string;
+    mcp: string;
+    web: string;
+    tool: string;
+  },
+): RouteSummaryItem[] {
+  const toolSteps = steps.filter(
+    (step): step is CoTToolCallStep => step.type === "toolCall",
+  );
+  const summaries = new Map<RouteKind, RouteSummaryItem>();
+
+  function add(kind: RouteKind, item: Omit<RouteSummaryItem, "kind" | "count">) {
+    const existing = summaries.get(kind);
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+    summaries.set(kind, { ...item, kind, count: 1 });
+  }
+
+  for (const step of toolSteps) {
+    if (step.name === "local_search") {
+      add("rag", {
+        label: labels.rag,
+        detail: step.name,
+        icon: BookOpenTextIcon,
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      });
+    } else if (step.name.startsWith("vikingdb_kb_")) {
+      add("skillMcp", {
+        label: labels.skillMcp,
+        detail: step.name,
+        icon: WrenchIcon,
+        className: "border-sky-200 bg-sky-50 text-sky-700",
+      });
+    } else if (step.name === "web_search" || step.name === "web_fetch") {
+      add("web", {
+        label: labels.web,
+        detail: step.name,
+        icon: GlobeIcon,
+        className: "border-amber-200 bg-amber-50 text-amber-700",
+      });
+    } else if (MCP_NAME_RE.test(step.name)) {
+      add("mcp", {
+        label: labels.mcp,
+        detail: step.name,
+        icon: WrenchIcon,
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+      });
+    } else {
+      add("tool", {
+        label: labels.tool,
+        detail: step.name,
+        icon: WrenchIcon,
+        className: "border-muted bg-muted/40 text-muted-foreground",
+      });
+    }
+  }
+
+  return ["rag", "skillMcp", "mcp", "web", "tool"]
+    .map((kind) => summaries.get(kind as RouteKind))
+    .filter((item): item is RouteSummaryItem => Boolean(item));
+}
 
 function convertToSteps(messages: Message[]): CoTStep[] {
   const steps: CoTStep[] = [];

@@ -268,6 +268,14 @@ export const enUS: Translations = {
   toolCalls: {
     moreSteps: (count: number) => `${count} more step${count === 1 ? "" : "s"}`,
     lessSteps: "Less steps",
+    answerRoute: "Answer route",
+    answerRouteLabels: {
+      rag: "RAG",
+      skillMcp: "Skill + MCP",
+      mcp: "MCP",
+      web: "Web",
+      tool: "Tool",
+    },
     executeCommand: "Execute command",
     presentFiles: "Present files",
     needYourHelp: "Need your help",

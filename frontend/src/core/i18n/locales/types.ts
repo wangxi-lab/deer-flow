@@ -199,6 +199,14 @@ export interface Translations {
   toolCalls: {
     moreSteps: (count: number) => string;
     lessSteps: string;
+    answerRoute: string;
+    answerRouteLabels: {
+      rag: string;
+      skillMcp: string;
+      mcp: string;
+      web: string;
+      tool: string;
+    };
     executeCommand: string;
     presentFiles: string;
     needYourHelp: string;

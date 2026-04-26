@@ -255,6 +255,14 @@ export const zhCN: Translations = {
   toolCalls: {
     moreSteps: (count: number) => `查看其他 ${count} 个步骤`,
     lessSteps: "隐藏步骤",
+    answerRoute: "问答路径",
+    answerRouteLabels: {
+      rag: "RAG",
+      skillMcp: "Skill + MCP",
+      mcp: "MCP",
+      web: "联网",
+      tool: "工具",
+    },
     executeCommand: "执行命令",
     presentFiles: "展示文件",
     needYourHelp: "需要你的协助",

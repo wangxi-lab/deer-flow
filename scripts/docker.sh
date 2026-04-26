@@ -15,6 +15,23 @@ DOCKER_DIR="$PROJECT_ROOT/docker"
 # Docker Compose command with project name
 COMPOSE_CMD="docker compose -p deer-flow-dev -f docker-compose-dev.yaml"
 
+load_root_env() {
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        set -a
+        # shellcheck disable=SC1091
+        source "$PROJECT_ROOT/.env"
+        set +a
+    fi
+
+    if [ -z "${NEXT_PUBLIC_DEERFLOW_AUTH_ENABLED:-}" ]; then
+        local auth_enabled
+        auth_enabled="$(printf "%s" "${DEERFLOW_AUTH_ENABLED:-}" | tr '[:upper:]' '[:lower:]')"
+        if [ "$auth_enabled" = "true" ] || { [ "$auth_enabled" != "false" ] && [ -n "${DEERFLOW_AUTH_PASSWORD:-}" ]; }; then
+            export NEXT_PUBLIC_DEERFLOW_AUTH_ENABLED=true
+        fi
+    fi
+}
+
 detect_sandbox_mode() {
     local config_file="$PROJECT_ROOT/config.yaml"
     local sandbox_use=""
@@ -165,6 +182,8 @@ start() {
     echo "  Starting DeerFlow Docker Development"
     echo "=========================================="
     echo ""
+
+    load_root_env
 
     sandbox_mode="$(detect_sandbox_mode)"
 

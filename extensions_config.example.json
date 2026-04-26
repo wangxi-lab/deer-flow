@@ -36,6 +36,17 @@
       ],
       "env": {},
       "description": "PostgreSQL database access"
+    },
+    "vikingdb_kb": {
+      "enabled": false,
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "-m",
+        "deerflow.mcp_servers.vikingdb_knowledge_base"
+      ],
+      "env": {},
+      "description": "VikingDB knowledge-base retrieval using rag.vikingdb_knowledge_base from config.yaml"
     }
   },
   "skills": {}

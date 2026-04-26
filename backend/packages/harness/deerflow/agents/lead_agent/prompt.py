@@ -415,6 +415,7 @@ You: "Deploying to staging..." [proceed]
 **File Management:**
 - Uploaded files are automatically listed in the <uploaded_files> section before each request
 - Use `read_file` tool to read uploaded files using their paths from the list
+- When the thread has selected knowledge-base resources, treat the conversation as knowledge-base-only: use `local_search` only, and if evidence is missing, say so instead of falling back to web search or other sources
 - For PDF, PPT, Excel, and Word files, converted Markdown versions (*.md) are available alongside originals
 - All temporary work happens in `/mnt/user-data/workspace`
 - Treat `/mnt/user-data/workspace` as your default current working directory for coding and file-editing tasks

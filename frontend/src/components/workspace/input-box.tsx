@@ -3,6 +3,7 @@
 import type { ChatStatus } from "ai";
 import {
   CheckIcon,
+  DatabaseIcon,
   GraduationCapIcon,
   LightbulbIcon,
   PaperclipIcon,
@@ -58,6 +59,7 @@ import {
 import { getBackendBaseURL } from "@/core/config";
 import { useI18n } from "@/core/i18n/hooks";
 import { useModels } from "@/core/models/hooks";
+import { useRAGConfig, useRAGHealth, useRAGResources } from "@/core/rag";
 import type { AgentThreadContext } from "@/core/threads";
 import { textOfMessage } from "@/core/threads/utils";
 import { cn } from "@/lib/utils";
@@ -75,6 +77,7 @@ import { Suggestion, Suggestions } from "../ai-elements/suggestion";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -145,6 +148,13 @@ export function InputBox({
   const searchParams = useSearchParams();
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const { models } = useModels();
+  const { data: ragConfig } = useRAGConfig();
+  const { data: ragHealth } = useRAGHealth({
+    enabled: ragConfig?.enabled ?? false,
+  });
+  const { data: ragResourcesData } = useRAGResources(undefined, {
+    enabled: ragConfig?.enabled ?? false,
+  });
   const { thread, isMock } = useThread();
   const { textInput } = usePromptInputController();
   const promptRootRef = useRef<HTMLDivElement | null>(null);
@@ -244,6 +254,56 @@ export function InputBox({
     },
     [onContextChange, context],
   );
+
+  const selectedRAGResourceIds = useMemo(() => {
+    const value = context.rag_resource_ids;
+    if (!Array.isArray(value)) {
+      return [] as string[];
+    }
+    return value.filter((item): item is string => typeof item === "string");
+  }, [context.rag_resource_ids]);
+
+  const ragResources = useMemo(() => {
+    const apiResources = ragResourcesData?.resources ?? [];
+    if (apiResources.length > 0) {
+      return apiResources;
+    }
+
+    const fallbackIds = ragConfig?.default_resource_ids ?? [];
+    return fallbackIds.map((id) => ({
+      id,
+      title: id,
+      provider: ragConfig?.provider ?? "external_rag",
+      description: undefined,
+      metadata: { placeholder: true },
+    }));
+  }, [
+    ragConfig?.default_resource_ids,
+    ragConfig?.provider,
+    ragResourcesData?.resources,
+  ]);
+  const ragEnabled = ragConfig?.enabled ?? false;
+  const ragHealthy = ragHealth?.ok ?? false;
+
+  const handleToggleRAGResource = useCallback(
+    (resourceId: string, checked: boolean) => {
+      const next = checked
+        ? Array.from(new Set([...selectedRAGResourceIds, resourceId]))
+        : selectedRAGResourceIds.filter((id) => id !== resourceId);
+      onContextChange?.({
+        ...context,
+        rag_resource_ids: next,
+      });
+    },
+    [context, onContextChange, selectedRAGResourceIds],
+  );
+
+  const handleClearRAGResources = useCallback(() => {
+    onContextChange?.({
+      ...context,
+      rag_resource_ids: [],
+    });
+  }, [context, onContextChange]);
 
   const handleSubmit = useCallback(
     async (message: PromptInputMessage) => {
@@ -789,6 +849,71 @@ export function InputBox({
                   </DropdownMenuGroup>
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
+            )}
+            {ragEnabled && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <PromptInputButton className="gap-1 px-2!">
+                    <DatabaseIcon
+                      className={cn(
+                        "size-3",
+                        ragHealthy ? "text-emerald-600" : "text-amber-500",
+                      )}
+                    />
+                    <div className="text-xs font-normal">
+                      {selectedRAGResourceIds.length > 0
+                        ? t.inputBox.knowledgeBaseSelected.replace(
+                            "{count}",
+                            String(selectedRAGResourceIds.length),
+                          )
+                        : t.inputBox.knowledgeBase}
+                    </div>
+                  </PromptInputButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80">
+                  <DropdownMenuLabel className="text-muted-foreground text-xs">
+                    {t.inputBox.knowledgeBase}
+                  </DropdownMenuLabel>
+                  <div className="text-muted-foreground px-2 pb-2 text-xs">
+                    {ragHealthy
+                      ? t.inputBox.knowledgeBaseDescription
+                      : ragHealth?.detail ?? t.inputBox.knowledgeBaseUnavailable}
+                  </div>
+                  <DropdownMenuSeparator />
+                  {ragResources.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-2 text-xs">
+                      {t.inputBox.knowledgeBaseEmpty}
+                    </div>
+                  ) : (
+                    <>
+                      {ragResources.map((resource) => (
+                        <DropdownMenuCheckboxItem
+                          key={resource.id}
+                          checked={selectedRAGResourceIds.includes(resource.id)}
+                          onCheckedChange={(checked) =>
+                            handleToggleRAGResource(resource.id, checked === true)
+                          }
+                        >
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate">{resource.title}</span>
+                            <span className="text-muted-foreground truncate text-[10px]">
+                              {resource.description ?? resource.id}
+                            </span>
+                          </div>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                      {selectedRAGResourceIds.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={handleClearRAGResources}>
+                            {t.inputBox.knowledgeBaseClear}
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </PromptInputTools>
           <PromptInputTools>

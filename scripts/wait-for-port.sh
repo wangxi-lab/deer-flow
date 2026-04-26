@@ -21,6 +21,40 @@ elapsed=0
 interval=1
 
 is_port_listening() {
+    if command -v python >/dev/null 2>&1; then
+        if python - "$PORT" >/dev/null 2>&1 <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+with socket.socket() as sock:
+    sock.settimeout(0.5)
+    sys.exit(0 if sock.connect_ex(("127.0.0.1", port)) == 0 else 1)
+PY
+        then
+            return 0
+        fi
+    elif command -v python3 >/dev/null 2>&1; then
+        if python3 - "$PORT" >/dev/null 2>&1 <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+with socket.socket() as sock:
+    sock.settimeout(0.5)
+    sys.exit(0 if sock.connect_ex(("127.0.0.1", port)) == 0 else 1)
+PY
+        then
+            return 0
+        fi
+    fi
+
+    if command -v bash >/dev/null 2>&1; then
+        if bash -c "exec 3<>/dev/tcp/127.0.0.1/$PORT" >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+
     if command -v lsof >/dev/null 2>&1; then
         if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
             return 0

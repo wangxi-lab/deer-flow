@@ -292,6 +292,7 @@ async def start_run(
     if context:
         _CONTEXT_CONFIGURABLE_KEYS = {
             "model_name",
+            "rag_resource_ids",
             "mode",
             "thinking_enabled",
             "reasoning_effort",

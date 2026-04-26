@@ -13,6 +13,7 @@ export const DEFAULT_LOCAL_SETTINGS: LocalSettings = {
 
 export const LOCAL_SETTINGS_KEY = "deerflow.local-settings";
 export const THREAD_MODEL_KEY_PREFIX = "deerflow.thread-model.";
+export const THREAD_RAG_RESOURCES_KEY_PREFIX = "deerflow.thread-rag-resources.";
 
 function isBrowser(): boolean {
   return typeof window !== "undefined";
@@ -32,6 +33,7 @@ export interface LocalSettings {
     | "reasoning_effort"
   > & {
     model_name?: string | undefined;
+    rag_resource_ids?: string[] | undefined;
     mode: "flash" | "thinking" | "pro" | "ultra" | undefined;
     reasoning_effort?: "minimal" | "low" | "medium" | "high";
   };
@@ -53,6 +55,10 @@ function mergeLocalSettings(settings?: Partial<LocalSettings>): LocalSettings {
 
 function getThreadModelStorageKey(threadId: string): string {
   return `${THREAD_MODEL_KEY_PREFIX}${threadId}`;
+}
+
+function getThreadRAGResourcesStorageKey(threadId: string): string {
+  return `${THREAD_RAG_RESOURCES_KEY_PREFIX}${threadId}`;
 }
 
 export function getThreadModelName(threadId: string): string | undefined {
@@ -77,18 +83,52 @@ export function saveThreadModelName(
   localStorage.setItem(key, modelName);
 }
 
-export function applyThreadModelOverride(
+export function getThreadRAGResourceIds(threadId: string): string[] | undefined {
+  if (!isBrowser()) {
+    return undefined;
+  }
+  const raw = localStorage.getItem(getThreadRAGResourcesStorageKey(threadId));
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string");
+    }
+  } catch {}
+  return undefined;
+}
+
+export function saveThreadRAGResourceIds(
+  threadId: string,
+  resourceIds: string[] | undefined,
+) {
+  if (!isBrowser()) {
+    return;
+  }
+  const key = getThreadRAGResourcesStorageKey(threadId);
+  if (!resourceIds || resourceIds.length === 0) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify(resourceIds));
+}
+
+export function applyThreadContextOverrides(
   settings: LocalSettings,
   threadModelName: string | undefined,
+  threadRAGResourceIds: string[] | undefined,
 ): LocalSettings {
-  if (!threadModelName) {
+  if (!threadModelName && !threadRAGResourceIds) {
     return settings;
   }
   return {
     ...settings,
     context: {
       ...settings.context,
-      model_name: threadModelName,
+      ...(threadModelName ? { model_name: threadModelName } : {}),
+      ...(threadRAGResourceIds ? { rag_resource_ids: threadRAGResourceIds } : {}),
     },
   };
 }

@@ -14,6 +14,7 @@ from app.gateway.routers import (
     mcp,
     memory,
     models,
+    rag,
     runs,
     skills,
     suggestions,
@@ -93,6 +94,7 @@ API Gateway for DeerFlow - A LangGraph-based AI agent backend with sandbox execu
 - **Models Management**: Query and retrieve available AI models
 - **MCP Configuration**: Manage Model Context Protocol (MCP) server configurations
 - **Memory Management**: Access and manage global memory data for personalized conversations
+- **RAG Management**: Connect to and retrieve from external knowledge bases
 - **Skills Management**: Query and manage skills and their enabled status
 - **Artifacts**: Access thread artifacts and generated files
 - **Health Monitoring**: System health check endpoints
@@ -119,6 +121,10 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
             {
                 "name": "memory",
                 "description": "Access and manage global memory data for personalized conversations",
+            },
+            {
+                "name": "rag",
+                "description": "External knowledge-base configuration, health, and retrieval endpoints",
             },
             {
                 "name": "skills",
@@ -174,6 +180,9 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Memory API is mounted at /api/memory
     app.include_router(memory.router)
+
+    # RAG API is mounted at /api/rag
+    app.include_router(rag.router)
 
     # Skills API is mounted at /api/skills
     app.include_router(skills.router)

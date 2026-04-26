@@ -39,6 +39,15 @@ import { Tooltip } from "../tooltip";
 
 import { MarkdownContent } from "./markdown-content";
 
+type LocalSearchChunk = {
+  text?: string;
+  score?: number;
+  source_id?: string;
+  source_title?: string;
+  source_uri?: string | null;
+  chunk_id?: string;
+};
+
 export function MessageGroup({
   className,
   messages,
@@ -329,6 +338,69 @@ function ToolCall({
         )}
       </ChainOfThoughtStep>
     );
+  } else if (name === "local_search") {
+    let description: string | undefined = (args as { description: string })
+      ?.description;
+    const query = (args as { query?: string })?.query;
+    if (!description) {
+      description = query
+        ? t.toolCalls.searchKnowledgeBaseFor(query)
+        : t.toolCalls.searchKnowledgeBase;
+    }
+    const chunks = parseLocalSearchChunks(result);
+    return (
+      <ChainOfThoughtStep key={id} label={description} icon={BookOpenTextIcon}>
+        <div className="mt-2 flex flex-col gap-3">
+          {chunks.length === 0 ? (
+            <div className="text-muted-foreground text-sm">
+              {t.toolCalls.noKnowledgeBaseSources}
+            </div>
+          ) : (
+            chunks.map((chunk, index) => (
+              <div
+                key={`${chunk.source_id ?? "source"}-${chunk.chunk_id ?? index}`}
+                className="bg-muted/30 rounded-lg border p-3"
+              >
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">
+                      {chunk.source_title ??
+                        chunk.source_id ??
+                        t.toolCalls.knowledgeBaseSource}
+                    </div>
+                    {chunk.source_id && (
+                      <div className="text-muted-foreground mt-0.5 text-xs">
+                        {chunk.source_id}
+                      </div>
+                    )}
+                  </div>
+                  {typeof chunk.score === "number" && (
+                    <div className="text-muted-foreground shrink-0 text-xs">
+                      {t.toolCalls.relevanceScore(chunk.score)}
+                    </div>
+                  )}
+                </div>
+                {chunk.source_uri && (
+                  <a
+                    href={chunk.source_uri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary mb-2 inline-flex text-xs underline underline-offset-2"
+                  >
+                    {t.toolCalls.openSource}
+                  </a>
+                )}
+                {chunk.text && (
+                  <div className="text-sm whitespace-pre-wrap">
+                    {truncateText(chunk.text, 420)}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </ChainOfThoughtStep>
+    );
   } else if (name === "write_file" || name === "str_replace") {
     let description: string | undefined = (args as { description: string })
       ?.description;
@@ -421,6 +493,40 @@ function ToolCall({
       ></ChainOfThoughtStep>
     );
   }
+}
+
+function parseLocalSearchChunks(
+  result: string | Record<string, unknown> | undefined,
+): LocalSearchChunk[] {
+  if (!result) {
+    return [];
+  }
+  if (Array.isArray(result)) {
+    return result.filter(isLocalSearchChunk);
+  }
+  if (typeof result !== "string") {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(result);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter(isLocalSearchChunk);
+  } catch {
+    return [];
+  }
+}
+
+function isLocalSearchChunk(value: unknown): value is LocalSearchChunk {
+  return typeof value === "object" && value !== null;
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
 interface GenericCoTStep<T extends string = string> {

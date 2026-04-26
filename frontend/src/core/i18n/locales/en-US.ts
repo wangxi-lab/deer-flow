@@ -106,6 +106,13 @@ export const enUS: Translations = {
     reasoningEffortHighDescription:
       "Full-dimensional Logic Deduction + Multi-path Verification + Backward Check",
     searchModels: "Search models...",
+    knowledgeBase: "Knowledge base",
+    knowledgeBaseDescription:
+      "Choose which connected knowledge-base resources this thread should search first.",
+    knowledgeBaseUnavailable: "Knowledge base is configured but currently unavailable.",
+    knowledgeBaseEmpty: "No knowledge-base resources available.",
+    knowledgeBaseClear: "Clear selection",
+    knowledgeBaseSelected: "{count} selected",
     surpriseMe: "Surprise",
     surpriseMePrompt: "Surprise me",
     followupLoading: "Generating follow-up questions...",
@@ -275,6 +282,14 @@ export const enUS: Translations = {
     listFolder: "List folder",
     readFile: "Read file",
     writeFile: "Write file",
+    searchKnowledgeBase: "Search knowledge base",
+    searchKnowledgeBaseFor: (query: string) =>
+      `Search knowledge base for "${query}"`,
+    noKnowledgeBaseSources: "No knowledge-base sources returned.",
+    citedKnowledgeBaseSources: "Sources",
+    knowledgeBaseSource: "Knowledge-base source",
+    openSource: "Open source",
+    relevanceScore: (score: number) => `Score ${score.toFixed(3)}`,
     clickToViewContent: "Click to view file content",
     writeTodos: "Update to-do list",
     skillInstallTooltip: "Install skill and make it available to DeerFlow",

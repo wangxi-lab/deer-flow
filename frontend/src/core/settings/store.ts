@@ -2,10 +2,13 @@ import {
   DEFAULT_LOCAL_SETTINGS,
   LOCAL_SETTINGS_KEY,
   THREAD_MODEL_KEY_PREFIX,
+  THREAD_RAG_RESOURCES_KEY_PREFIX,
   getLocalSettings,
   getThreadModelName,
+  getThreadRAGResourceIds,
   saveLocalSettings,
   saveThreadModelName,
+  saveThreadRAGResourceIds,
   type LocalSettings,
 } from "./local";
 
@@ -18,6 +21,7 @@ export type LocalSettingsSetter = <K extends keyof LocalSettings>(
 
 const listeners = new Set<Listener>();
 const threadModelNames = new Map<string, string | undefined>();
+const threadRagResourceIds = new Map<string, string[] | undefined>();
 
 let baseSettings: LocalSettings = DEFAULT_LOCAL_SETTINGS;
 let baseSettingsLoaded = false;
@@ -71,6 +75,7 @@ function handleStorage(event: StorageEvent) {
   if (event.key === null) {
     baseSettings = getLocalSettings();
     threadModelNames.clear();
+    threadRagResourceIds.clear();
     emitChange();
     return;
   }
@@ -82,6 +87,12 @@ function handleStorage(event: StorageEvent) {
   }
 
   if (!event.key.startsWith(THREAD_MODEL_KEY_PREFIX)) {
+    if (!event.key.startsWith(THREAD_RAG_RESOURCES_KEY_PREFIX)) {
+      return;
+    }
+    const threadId = event.key.slice(THREAD_RAG_RESOURCES_KEY_PREFIX.length);
+    threadRagResourceIds.set(threadId, getThreadRAGResourceIds(threadId));
+    emitChange();
     return;
   }
 
@@ -115,6 +126,18 @@ export function getThreadModelSnapshot(threadId: string): string | undefined {
   return threadModelNames.get(threadId);
 }
 
+export function getThreadRAGResourceIdsSnapshot(
+  threadId: string,
+): string[] | undefined {
+  ensureBaseSettingsLoaded();
+
+  if (!threadRagResourceIds.has(threadId)) {
+    threadRagResourceIds.set(threadId, getThreadRAGResourceIds(threadId));
+  }
+
+  return threadRagResourceIds.get(threadId);
+}
+
 export const updateLocalSettings: LocalSettingsSetter = (key, value) => {
   ensureBaseSettingsLoaded();
   ensureStorageListenerRegistered();
@@ -144,6 +167,16 @@ export function updateThreadSettings<K extends keyof LocalSettings>(
     const threadModelName = contextValue.model_name;
     threadModelNames.set(threadId, threadModelName);
     saveThreadModelName(threadId, threadModelName);
+  }
+
+  if (
+    key === "context" &&
+    Object.prototype.hasOwnProperty.call(value, "rag_resource_ids")
+  ) {
+    const contextValue = value as Partial<LocalSettings["context"]>;
+    const resourceIds = contextValue.rag_resource_ids;
+    threadRagResourceIds.set(threadId, resourceIds);
+    saveThreadRAGResourceIds(threadId, resourceIds);
   }
 
   emitChange();

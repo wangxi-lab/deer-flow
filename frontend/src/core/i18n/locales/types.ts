@@ -85,6 +85,12 @@ export interface Translations {
     reasoningEffortHigh: string;
     reasoningEffortHighDescription: string;
     searchModels: string;
+    knowledgeBase: string;
+    knowledgeBaseDescription: string;
+    knowledgeBaseUnavailable: string;
+    knowledgeBaseEmpty: string;
+    knowledgeBaseClear: string;
+    knowledgeBaseSelected: string;
     surpriseMe: string;
     surpriseMePrompt: string;
     followupLoading: string;
@@ -206,6 +212,13 @@ export interface Translations {
     listFolder: string;
     readFile: string;
     writeFile: string;
+    searchKnowledgeBase: string;
+    searchKnowledgeBaseFor: (query: string) => string;
+    noKnowledgeBaseSources: string;
+    citedKnowledgeBaseSources: string;
+    knowledgeBaseSource: string;
+    openSource: string;
+    relevanceScore: (score: number) => string;
     clickToViewContent: string;
     writeTodos: string;
     skillInstallTooltip: string;

@@ -12,7 +12,7 @@
 # ============================================================================
 # Bump this number when the config schema changes.
 # Run `make config-upgrade` to merge new fields into your local config.yaml.
-config_version: 7
+config_version: 8
 
 # ============================================================================
 # Logging
@@ -714,6 +714,48 @@ memory:
   fact_confidence_threshold: 0.7 # Minimum confidence for storing facts
   injection_enabled: true # Whether to inject memory into system prompt
   max_injection_tokens: 2000 # Maximum tokens for memory injection
+
+# ============================================================================
+# External RAG Configuration
+# ============================================================================
+# Optional external knowledge-base integration.
+# Start with RAGFlow for the first 2.x implementation. When enabled, DeerFlow
+# exposes /api/rag/* endpoints and a built-in local_search tool.
+rag:
+  enabled: false
+  provider: null # Supported today: ragflow, qdrant, vikingdb_knowledge_base
+  ragflow:
+    api_url: null # e.g. http://localhost:9380
+    api_key: null # e.g. $RAGFLOW_API_KEY
+    dataset_ids: [] # Default dataset ids used when the caller does not specify resource_ids
+    timeout_seconds: 30.0
+    retrieval_size: 5
+    page_size: 30
+    cross_languages: [] # e.g. [English, Chinese]
+  qdrant:
+    url: null # e.g. http://localhost:6333
+    api_key: null # e.g. $QDRANT_API_KEY
+    collection_names: [] # Default collection names used when the caller does not specify resource_ids
+    timeout_seconds: 30.0
+    retrieval_size: 5
+    score_threshold: null
+    vector_name: null # Optional named vector, if your collection stores multiple vectors
+    text_payload_key: text
+    title_payload_key: title
+    uri_payload_key: source
+    embedding:
+      model: text-embedding-3-small
+      api_key: $OPENAI_API_KEY
+      base_url: null # Optional OpenAI-compatible embeddings endpoint
+  vikingdb_knowledge_base:
+    api_url: null # e.g. api-knowledgebase.mlp.cn-beijing.volces.com
+    api_ak: null # e.g. $VIKINGDB_KNOWLEDGE_BASE_API_AK
+    api_sk: null # e.g. $VIKINGDB_KNOWLEDGE_BASE_API_SK
+    resource_ids: [] # Default knowledge-base resource ids used when the caller does not specify resource_ids
+    timeout_seconds: 30.0
+    retrieval_size: 5
+    region: cn-north-1
+    service: air
 
 # ============================================================================
 # Custom Agent Management API

@@ -147,6 +147,11 @@ fi
 
 # Extra flags for uvicorn/langgraph
 LANGGRAPH_EXTRA_FLAGS="--no-reload"
+if [ "${OS:-}" = "Windows_NT" ] && [ -z "${LANGGRAPH_ALLOW_BLOCKING+x}" ]; then
+    # Windows local dev frequently hits false-positive blocking checks in
+    # pathlib/shutil during LangGraph graph loading and thread history access.
+    LANGGRAPH_ALLOW_BLOCKING=1
+fi
 if $DEV_MODE && ! $DAEMON_MODE; then
     GATEWAY_EXTRA_FLAGS="--reload --reload-include='*.yaml' --reload-include='.env' --reload-exclude='*.pyc' --reload-exclude='__pycache__' --reload-exclude='sandbox/' --reload-exclude='.deer-flow/'"
 else

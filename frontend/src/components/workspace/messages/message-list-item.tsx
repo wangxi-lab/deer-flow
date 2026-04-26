@@ -1,8 +1,9 @@
 import type { Message } from "@langchain/langgraph-sdk";
-import { FileIcon, Loader2Icon } from "lucide-react";
+import { ChevronDownIcon, FileIcon, Loader2Icon } from "lucide-react";
 import {
   memo,
   useMemo,
+  useState,
   type AnchorHTMLAttributes,
   type ImgHTMLAttributes,
 } from "react";
@@ -22,11 +23,20 @@ import {
 } from "@/components/ai-elements/reasoning";
 import { Task, TaskTrigger } from "@/components/ai-elements/task";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { resolveArtifactURL } from "@/core/artifacts/utils";
 import { useI18n } from "@/core/i18n/hooks";
 import {
   extractContentFromMessage,
   extractReasoningContentFromMessage,
+  extractTextFromMessage,
+  findToolCallResult,
+  hasContent,
+  hasToolCalls,
   parseUploadedFiles,
   stripUploadedFilesTag,
   type FileInMessage,
@@ -40,15 +50,30 @@ import { CopyButton } from "../copy-button";
 import { MarkdownContent } from "./markdown-content";
 import { MessageTokenUsage } from "./message-token-usage";
 
+type LocalSearchChunk = {
+  text?: string;
+  score?: number;
+  source_id?: string;
+  source_title?: string;
+  source_uri?: string | null;
+  chunk_id?: string;
+};
+
+type NumberedLocalSearchChunk = LocalSearchChunk & {
+  citationIndex: number;
+};
+
 export function MessageListItem({
   className,
   message,
+  allMessages,
   isLoading,
   threadId,
   tokenUsageEnabled = false,
 }: {
   className?: string;
   message: Message;
+  allMessages?: Message[];
   isLoading?: boolean;
   threadId: string;
   tokenUsageEnabled?: boolean;
@@ -62,6 +87,7 @@ export function MessageListItem({
       <MessageContent
         className={isHuman ? "w-fit" : "w-full"}
         message={message}
+        allMessages={allMessages}
         isLoading={isLoading}
         threadId={threadId}
         tokenUsageEnabled={tokenUsageEnabled}
@@ -121,12 +147,14 @@ function MessageImage({
 function MessageContent_({
   className,
   message,
+  allMessages,
   isLoading = false,
   threadId,
   tokenUsageEnabled = false,
 }: {
   className?: string;
   message: Message;
+  allMessages?: Message[];
   isLoading?: boolean;
   threadId: string;
   tokenUsageEnabled?: boolean;
@@ -177,6 +205,31 @@ function MessageContent_({
     }
     return rawContent ?? "";
   }, [rawContent, isHuman]);
+  const citedSources = useMemo(
+    () =>
+      !isHuman && allMessages
+        ? extractCitedKnowledgeBaseSources(message, allMessages)
+        : [],
+    [allMessages, isHuman, message],
+  );
+  const numberedCitedSources = useMemo<NumberedLocalSearchChunk[]>(
+    () =>
+      citedSources.map((chunk, index) => ({
+        ...chunk,
+        citationIndex: index + 1,
+      })),
+    [citedSources],
+  );
+  const annotatedContent = useMemo(
+    () =>
+      !isHuman
+        ? annotateContentWithKnowledgeBaseCitations(
+            contentToDisplay,
+            numberedCitedSources,
+          )
+        : contentToDisplay,
+    [contentToDisplay, isHuman, numberedCitedSources],
+  );
 
   const filesList =
     files && files.length > 0 ? (
@@ -243,12 +296,15 @@ function MessageContent_({
     <AIElementMessageContent className={className}>
       {filesList}
       <MarkdownContent
-        content={contentToDisplay}
+        content={annotatedContent}
         isLoading={isLoading}
         rehypePlugins={[...rehypePlugins, [rehypeKatex, { output: "html" }]]}
         className="my-3"
         components={components}
       />
+      {numberedCitedSources.length > 0 && (
+        <KnowledgeBaseCitations chunks={numberedCitedSources} />
+      )}
       <MessageTokenUsage
         enabled={tokenUsageEnabled}
         isLoading={isLoading}
@@ -256,6 +312,258 @@ function MessageContent_({
       />
     </AIElementMessageContent>
   );
+}
+
+function KnowledgeBaseCitations({
+  chunks,
+}: {
+  chunks: NumberedLocalSearchChunk[];
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="mt-4 flex flex-col gap-3">
+      <div className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        {t.toolCalls.citedKnowledgeBaseSources} ({chunks.length})
+      </div>
+      <div className="flex flex-col gap-2">
+        {chunks.map((chunk, index) => (
+          <KnowledgeBaseCitationCard
+            key={`${chunk.source_id ?? "source"}-${chunk.chunk_id ?? index}`}
+            chunk={chunk}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KnowledgeBaseCitationCard({
+  chunk,
+}: {
+  chunk: NumberedLocalSearchChunk;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const title =
+    chunk.source_title ?? chunk.source_id ?? t.toolCalls.knowledgeBaseSource;
+
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      id={`kb-source-${chunk.citationIndex}`}
+      className="bg-muted/30 rounded-lg border scroll-mt-24"
+    >
+      <div className="flex items-center gap-2 p-3">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <span className="inline-flex shrink-0 rounded-full border px-2 py-0.5 text-xs">
+              [{chunk.citationIndex}]
+            </span>
+            <span className="truncate text-sm font-medium">{title}</span>
+            <ChevronDownIcon
+              className={cn(
+                "text-muted-foreground ml-auto size-4 shrink-0 transition-transform",
+                open ? "rotate-180" : "",
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        {typeof chunk.score === "number" && (
+          <div className="text-muted-foreground hidden shrink-0 text-xs sm:block">
+            {t.toolCalls.relevanceScore(chunk.score)}
+          </div>
+        )}
+      </div>
+      <CollapsibleContent>
+        <div className="border-t px-3 pt-2 pb-3">
+          {chunk.source_id && (
+            <div className="text-muted-foreground mb-2 text-xs">
+              {chunk.source_id}
+            </div>
+          )}
+          {typeof chunk.score === "number" && (
+            <div className="text-muted-foreground mb-2 text-xs sm:hidden">
+              {t.toolCalls.relevanceScore(chunk.score)}
+            </div>
+          )}
+          {chunk.source_uri && (
+            <a
+              href={chunk.source_uri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary mb-2 inline-flex text-xs underline underline-offset-2"
+            >
+              {t.toolCalls.openSource}
+            </a>
+          )}
+          {chunk.text && (
+            <div className="text-sm whitespace-pre-wrap">
+              {truncateText(chunk.text, 280)}
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function extractCitedKnowledgeBaseSources(
+  message: Message,
+  allMessages: Message[],
+): LocalSearchChunk[] {
+  if (message.type !== "ai" || !hasContent(message) || hasToolCalls(message)) {
+    return [];
+  }
+
+  const messageIndex = allMessages.findIndex((item) => item.id === message.id);
+  if (messageIndex <= 0) {
+    return [];
+  }
+
+  const collected: LocalSearchChunk[] = [];
+  const seen = new Set<string>();
+
+  for (let index = messageIndex - 1; index >= 0; index -= 1) {
+    const previous = allMessages[index];
+    if (!previous) {
+      continue;
+    }
+
+    if (previous.type === "human") {
+      break;
+    }
+
+    if (previous.type === "ai") {
+      for (const toolCall of previous.tool_calls ?? []) {
+        if (toolCall.name !== "local_search" || !toolCall.id) {
+          continue;
+        }
+        const result = findToolCallResult(toolCall.id, allMessages);
+        const chunks = parseLocalSearchChunks(result);
+        for (const chunk of chunks) {
+          const dedupeKey = `${chunk.source_id ?? ""}:${chunk.chunk_id ?? chunk.text ?? ""}`;
+          if (seen.has(dedupeKey)) {
+            continue;
+          }
+          seen.add(dedupeKey);
+          collected.push(chunk);
+        }
+      }
+      continue;
+    }
+
+    if (previous.type === "tool") {
+      const toolResultText = extractTextFromMessage(previous);
+      if (toolResultText.includes("Knowledge-base-only mode is active")) {
+        continue;
+      }
+    }
+  }
+
+  return collected.slice(0, 4);
+}
+
+function parseLocalSearchChunks(result: unknown): LocalSearchChunk[] {
+  if (!result) {
+    return [];
+  }
+
+  if (Array.isArray(result)) {
+    return result.filter(isLocalSearchChunk);
+  }
+
+  if (typeof result !== "string") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(result);
+    return Array.isArray(parsed) ? parsed.filter(isLocalSearchChunk) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isLocalSearchChunk(value: unknown): value is LocalSearchChunk {
+  return typeof value === "object" && value !== null;
+}
+
+function annotateContentWithKnowledgeBaseCitations(
+  content: string,
+  chunks: NumberedLocalSearchChunk[],
+): string {
+  if (!content || chunks.length === 0) {
+    return content;
+  }
+
+  const segments = content.split(/(```[\s\S]*?```)/g);
+  let sentenceIndex = 0;
+
+  return segments
+    .map((segment) => {
+      if (segment.startsWith("```") && segment.endsWith("```")) {
+        return segment;
+      }
+
+      return segment
+        .split("\n")
+        .map((line) => annotateLineWithCitations(line, chunks, () => sentenceIndex++))
+        .join("\n");
+    })
+    .join("");
+}
+
+function annotateLineWithCitations(
+  line: string,
+  chunks: NumberedLocalSearchChunk[],
+  nextSentenceIndex: () => number,
+): string {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return line;
+  }
+
+  if (
+    trimmed.startsWith("#") ||
+    trimmed.startsWith(">") ||
+    trimmed.startsWith("- ") ||
+    trimmed.startsWith("* ") ||
+    /^\d+\.\s/.test(trimmed) ||
+    trimmed.startsWith("|")
+  ) {
+    return line;
+  }
+
+  const sentencePattern = /[^。！？!?]+[。！？!?]?/g;
+  return line.replace(sentencePattern, (segment) => {
+    const leadingWhitespace = /^\s*/.exec(segment)?.[0] ?? "";
+    const trailingWhitespace = /\s*$/.exec(segment)?.[0] ?? "";
+    const core = segment.trim();
+    if (!core) {
+      return segment;
+    }
+
+    const chunk = chunks[nextSentenceIndex() % chunks.length];
+    if (!chunk) {
+      return segment;
+    }
+    const href = chunk.source_uri ?? `#kb-source-${chunk.citationIndex}`;
+    const marker = `[\\[${chunk.citationIndex}\\]](${href})`;
+    const needsSpace = /[A-Za-z0-9)`]$/.test(core);
+    return `${leadingWhitespace}${core}${needsSpace ? " " : ""}${marker}${trailingWhitespace}`;
+  });
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 1).trimEnd()}...`;
 }
 
 /**

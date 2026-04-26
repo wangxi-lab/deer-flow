@@ -205,6 +205,7 @@ def test_context_merges_into_configurable():
 
     context = {
         "model_name": "deepseek-v3",
+        "rag_resource_ids": ["kb-1", "kb-2"],
         "mode": "ultra",
         "reasoning_effort": "high",
         "thinking_enabled": True,
@@ -216,6 +217,7 @@ def test_context_merges_into_configurable():
 
     _CONTEXT_CONFIGURABLE_KEYS = {
         "model_name",
+        "rag_resource_ids",
         "mode",
         "thinking_enabled",
         "reasoning_effort",
@@ -229,6 +231,7 @@ def test_context_merges_into_configurable():
             configurable.setdefault(key, context[key])
 
     assert config["configurable"]["model_name"] == "deepseek-v3"
+    assert config["configurable"]["rag_resource_ids"] == ["kb-1", "kb-2"]
     assert config["configurable"]["thinking_enabled"] is True
     assert config["configurable"]["is_plan_mode"] is True
     assert config["configurable"]["subagent_enabled"] is True
@@ -253,12 +256,14 @@ def test_context_does_not_override_existing_configurable():
 
     context = {
         "model_name": "deepseek-v3",
+        "rag_resource_ids": ["kb-new"],
         "is_plan_mode": True,
         "subagent_enabled": True,
     }
 
     _CONTEXT_CONFIGURABLE_KEYS = {
         "model_name",
+        "rag_resource_ids",
         "mode",
         "thinking_enabled",
         "reasoning_effort",
@@ -276,6 +281,7 @@ def test_context_does_not_override_existing_configurable():
     assert config["configurable"]["is_plan_mode"] is False
     # New values should be added
     assert config["configurable"]["subagent_enabled"] is True
+    assert config["configurable"]["rag_resource_ids"] == ["kb-new"]
 
 
 # ---------------------------------------------------------------------------

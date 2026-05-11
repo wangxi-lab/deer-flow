@@ -53,6 +53,7 @@ sandbox_image_cache.tar
 web/
 
 # Deployment artifacts
+dist/
 backend/Dockerfile.langgraph
 config.yaml.bak
 .playwright-mcp

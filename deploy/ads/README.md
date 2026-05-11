@@ -94,12 +94,13 @@ skills/
 ```
 
 ADS can install Python dependencies from the generated root-level
-`requirements.txt`. The file is exported from `backend/uv.lock` and includes
-the local harness package as:
+`requirements.txt`. The file is exported from `backend/uv.lock` without uv
+headers/annotations and contains only registry-style package lines such as
+`fastapi==...`.
 
-```text
--e ./backend/packages/harness
-```
+The local DeerFlow harness package is not listed with `-e ...` because some ADS
+installers reject editable/path requirements. It is shipped in
+`backend/packages/harness` and loaded through `PYTHONPATH` by `app.sh`.
 
 If ADS installs dependencies automatically before running `app.sh`, no extra
 startup install step is needed. If ADS does not install dependencies

@@ -40,7 +40,7 @@ if [ ! -f "$DEER_FLOW_EXTENSIONS_CONFIG_PATH" ]; then
 fi
 
 cd "$APP_DIR/backend"
-export PYTHONPATH="$APP_DIR/backend${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$APP_DIR/backend:$APP_DIR/backend/packages/harness${PYTHONPATH:+:$PYTHONPATH}"
 
 if [ -x "$APP_DIR/backend/.venv/bin/uvicorn" ]; then
   "$APP_DIR/backend/.venv/bin/uvicorn" app.gateway.app:app \

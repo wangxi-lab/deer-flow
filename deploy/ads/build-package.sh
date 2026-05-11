@@ -68,11 +68,16 @@ fi
 if [ -n "$UV_BIN" ]; then
   (
     cd "$REPO_ROOT/backend"
-    "$UV_BIN" export --frozen --no-dev --format requirements.txt --no-hashes
+    "$UV_BIN" export --frozen --no-dev --format requirements.txt --no-hashes --no-header --no-annotate
   ) > "$STAGE_DIR/requirements.txt"
-  # ADS installs requirements.txt from the package root. The uv export is
-  # generated from backend/, so rewrite the local workspace path accordingly.
-  sed -i.bak 's|^-e ./packages/harness|-e ./backend/packages/harness|' "$STAGE_DIR/requirements.txt"
+  # ADS only accepts registry-style requirement lines (package==version).
+  # The local workspace package is shipped in backend/packages/harness and
+  # exposed through PYTHONPATH by app.sh instead of being installed with -e.
+  sed -i.bak \
+    -e '/^-e \.\/packages\/harness$/d' \
+    -e '/^[[:space:]]*#/d' \
+    -e '/^[[:space:]]*$/d' \
+    "$STAGE_DIR/requirements.txt"
   rm -f "$STAGE_DIR/requirements.txt.bak"
 else
   echo "uv is required to generate ADS requirements.txt from backend/uv.lock." >&2

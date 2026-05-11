@@ -86,11 +86,30 @@ Required files in the extracted package:
 
 ```text
 app.sh
+requirements.txt
 config.yaml
 extensions_config.json
 backend/
 skills/
 ```
+
+ADS can install Python dependencies from the generated root-level
+`requirements.txt`. The file is exported from `backend/uv.lock` and includes
+the local harness package as:
+
+```text
+-e ./backend/packages/harness
+```
+
+If ADS installs dependencies automatically before running `app.sh`, no extra
+startup install step is needed. If ADS does not install dependencies
+automatically, either install manually with:
+
+```bash
+pip install -r requirements.txt
+```
+
+or include a prebuilt Linux virtual environment with `INCLUDE_VENV=1`.
 
 Recommended ADS environment variables:
 

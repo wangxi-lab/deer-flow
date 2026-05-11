@@ -56,6 +56,30 @@ rsync -a \
   --exclude "custom" \
   "$REPO_ROOT/skills/" "$STAGE_DIR/skills/"
 
+UV_BIN="${UV_BIN:-}"
+if [ -z "$UV_BIN" ]; then
+  if command -v uv >/dev/null 2>&1; then
+    UV_BIN="uv"
+  elif command -v uv.exe >/dev/null 2>&1; then
+    UV_BIN="uv.exe"
+  fi
+fi
+
+if [ -n "$UV_BIN" ]; then
+  (
+    cd "$REPO_ROOT/backend"
+    "$UV_BIN" export --frozen --no-dev --format requirements.txt --no-hashes
+  ) > "$STAGE_DIR/requirements.txt"
+  # ADS installs requirements.txt from the package root. The uv export is
+  # generated from backend/, so rewrite the local workspace path accordingly.
+  sed -i.bak 's|^-e ./packages/harness|-e ./backend/packages/harness|' "$STAGE_DIR/requirements.txt"
+  rm -f "$STAGE_DIR/requirements.txt.bak"
+else
+  echo "uv is required to generate ADS requirements.txt from backend/uv.lock." >&2
+  echo "Install uv or build the package on a machine that has uv available." >&2
+  exit 1
+fi
+
 chmod +x "$STAGE_DIR/app.sh"
 
 if [ "${INCLUDE_VENV:-0}" = "1" ]; then

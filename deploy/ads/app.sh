@@ -1,17 +1,13 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# ADS backend-only entrypoint.
-# This starts the FastAPI Gateway. In the current DeerFlow branch the Gateway
-# embeds the LangGraph runtime, so there is no separate langgraph service.
-
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P)"
-cd "$APP_DIR"
+#!/bin/sh
+echo "Python Server starting......................."
+binPath=$(dirname "$0")
+cd $binPath
+APP_DIR=$(pwd)
 
 if [ -f "$APP_DIR/.env" ]; then
   set -a
   # shellcheck disable=SC1091
-  source "$APP_DIR/.env"
+  . "$APP_DIR/.env"
   set +a
 fi
 
@@ -26,7 +22,7 @@ export DEER_FLOW_EXTENSIONS_CONFIG_PATH="${DEER_FLOW_EXTENSIONS_CONFIG_PATH:-$AP
 export DEER_FLOW_SKILLS_PATH="${DEER_FLOW_SKILLS_PATH:-$APP_DIR/skills}"
 
 export GATEWAY_HOST="${GATEWAY_HOST:-0.0.0.0}"
-export GATEWAY_PORT="${GATEWAY_PORT:-${PORT:-8001}}"
+export GATEWAY_PORT="${GATEWAY_PORT:-${PORT:-8080}}"
 
 # Useful when testing from a local frontend. Override in ADS when needed.
 export GATEWAY_CORS_ORIGINS="${GATEWAY_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}"
@@ -47,20 +43,30 @@ cd "$APP_DIR/backend"
 export PYTHONPATH="$APP_DIR/backend${PYTHONPATH:+:$PYTHONPATH}"
 
 if [ -x "$APP_DIR/backend/.venv/bin/uvicorn" ]; then
-  exec "$APP_DIR/backend/.venv/bin/uvicorn" app.gateway.app:app \
+  "$APP_DIR/backend/.venv/bin/uvicorn" app.gateway.app:app \
     --host "$GATEWAY_HOST" \
     --port "$GATEWAY_PORT" \
-    --workers "${GATEWAY_WORKERS:-1}"
-fi
-
-if command -v uv >/dev/null 2>&1; then
-  exec uv run ${UV_RUN_ARGS---frozen} uvicorn app.gateway.app:app \
+    --workers "${GATEWAY_WORKERS:-1}" &
+elif command -v uv >/dev/null 2>&1; then
+  uv run ${UV_RUN_ARGS---frozen} uvicorn app.gateway.app:app \
     --host "$GATEWAY_HOST" \
     --port "$GATEWAY_PORT" \
-    --workers "${GATEWAY_WORKERS:-1}"
+    --workers "${GATEWAY_WORKERS:-1}" &
+else
+  python3 -m uvicorn app.gateway.app:app \
+    --host "$GATEWAY_HOST" \
+    --port "$GATEWAY_PORT" \
+    --workers "${GATEWAY_WORKERS:-1}" &
 fi
 
-exec python -m uvicorn app.gateway.app:app \
-  --host "$GATEWAY_HOST" \
-  --port "$GATEWAY_PORT" \
-  --workers "${GATEWAY_WORKERS:-1}"
+GATEWAY_PID=$!
+echo "DeerFlow Gateway started with pid $GATEWAY_PID on port $GATEWAY_PORT"
+
+while :
+do
+  if ! kill -0 "$GATEWAY_PID" 2>/dev/null; then
+    echo "DeerFlow Gateway exited unexpectedly."
+    exit 1
+  fi
+  sleep 1
+done

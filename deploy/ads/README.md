@@ -7,7 +7,7 @@ In the current DeerFlow branch, the FastAPI Gateway embeds the LangGraph
 runtime. You only need to start one backend process:
 
 ```text
-Gateway 8001 = REST API + LangGraph-compatible API + agent runtime
+Gateway 8080 = REST API + LangGraph-compatible API + agent runtime
 ```
 
 ## Build Package
@@ -62,6 +62,26 @@ Extract the package in ADS and set the startup entry to:
 ./app.sh
 ```
 
+`app.sh` follows the ADS shell-entry convention:
+
+```sh
+#!/bin/sh
+echo "DeerFlow Gateway starting........................"
+binPath=$(dirname "$0")
+cd "$binPath" || exit 1
+# start DeerFlow Gateway in background with "&"
+while :
+do
+  sleep 1
+done
+```
+
+The actual application entry inside the script is the Gateway process:
+
+```bash
+uvicorn app.gateway.app:app --host 0.0.0.0 --port "$GATEWAY_PORT" &
+```
+
 Required files in the extracted package:
 
 ```text
@@ -75,7 +95,7 @@ skills/
 Recommended ADS environment variables:
 
 ```bash
-PORT=8001
+PORT=8080
 GATEWAY_WORKERS=1
 DEER_FLOW_HOME=/data/deer-flow
 DEER_FLOW_CONFIG_PATH=/app/config.yaml
@@ -94,7 +114,7 @@ Run the frontend locally and point it to the ADS Gateway:
 ```bash
 cd frontend
 cat > .env.local <<'EOF'
-DEER_FLOW_INTERNAL_GATEWAY_BASE_URL=http://ADS_HOST:8001
+DEER_FLOW_INTERNAL_GATEWAY_BASE_URL=http://ADS_HOST:8080
 EOF
 pnpm dev
 ```
@@ -116,7 +136,7 @@ http://localhost:3000
 After ADS starts the package, verify:
 
 ```bash
-curl http://ADS_HOST:8001/health
+curl http://ADS_HOST:8080/health
 ```
 
 Expected response:

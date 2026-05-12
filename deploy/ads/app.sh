@@ -42,12 +42,12 @@ fi
 cd "$APP_DIR/backend"
 export PYTHONPATH="$APP_DIR/backend:$APP_DIR/backend/packages/harness${PYTHONPATH:+:$PYTHONPATH}"
 
-if [ -x "$APP_DIR/backend/.venv/bin/python" ]; then
+if [ "${ADS_USE_VENV:-0}" = "1" ] && [ -x "$APP_DIR/backend/.venv/bin/python" ]; then
   "$APP_DIR/backend/.venv/bin/python" -m uvicorn app.gateway.app:app \
     --host "$GATEWAY_HOST" \
     --port "$GATEWAY_PORT" \
     --workers "${GATEWAY_WORKERS:-1}" &
-elif command -v uv >/dev/null 2>&1; then
+elif [ "${ADS_USE_UV:-0}" = "1" ] && command -v uv >/dev/null 2>&1; then
   uv run ${UV_RUN_ARGS---frozen} uvicorn app.gateway.app:app \
     --host "$GATEWAY_HOST" \
     --port "$GATEWAY_PORT" \

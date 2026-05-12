@@ -126,6 +126,21 @@ pip install -r requirements.txt
 
 or include a prebuilt Linux virtual environment with `INCLUDE_VENV=1`.
 
+By default, `app.sh` uses the platform Python environment so it works with the
+ADS `requirements.txt` installation flow. If you intentionally packaged a
+Linux `.venv` and want to use it, set:
+
+```bash
+ADS_USE_VENV=1
+```
+
+`uv run` is also disabled by default for ADS because it may discover or create a
+`.venv`. If you intentionally want to use uv at runtime, set:
+
+```bash
+ADS_USE_UV=1
+```
+
 Recommended ADS environment variables:
 
 ```bash

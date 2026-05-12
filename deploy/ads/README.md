@@ -18,6 +18,12 @@ Run from the repository root:
 bash deploy/ads/build-package.sh
 ```
 
+On Windows/PowerShell without `rsync`, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/ads/build-package.ps1
+```
+
 The output is:
 
 ```text

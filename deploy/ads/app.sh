@@ -42,8 +42,8 @@ fi
 cd "$APP_DIR/backend"
 export PYTHONPATH="$APP_DIR/backend:$APP_DIR/backend/packages/harness${PYTHONPATH:+:$PYTHONPATH}"
 
-if [ -x "$APP_DIR/backend/.venv/bin/uvicorn" ]; then
-  "$APP_DIR/backend/.venv/bin/uvicorn" app.gateway.app:app \
+if [ -x "$APP_DIR/backend/.venv/bin/python" ]; then
+  "$APP_DIR/backend/.venv/bin/python" -m uvicorn app.gateway.app:app \
     --host "$GATEWAY_HOST" \
     --port "$GATEWAY_PORT" \
     --workers "${GATEWAY_WORKERS:-1}" &

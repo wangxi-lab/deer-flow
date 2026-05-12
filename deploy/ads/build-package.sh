@@ -93,6 +93,12 @@ if [ "${INCLUDE_VENV:-0}" = "1" ]; then
     echo "Run 'cd backend && uv sync' on a Linux environment compatible with ADS first." >&2
     exit 1
   fi
+  if [ ! -x "$REPO_ROOT/backend/.venv/bin/python" ]; then
+    echo "INCLUDE_VENV=1 requires a Linux virtualenv at backend/.venv." >&2
+    echo "The current backend/.venv does not contain bin/python." >&2
+    echo "Build the package on a Linux machine/container compatible with ADS." >&2
+    exit 1
+  fi
   rsync -a "$REPO_ROOT/backend/.venv/" "$STAGE_DIR/backend/.venv/"
 fi
 

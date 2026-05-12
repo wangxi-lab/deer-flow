@@ -42,6 +42,20 @@ cd ..
 INCLUDE_VENV=1 bash deploy/ads/build-package.sh
 ```
 
+When a prebuilt `.venv` is included, build it on the same CPU architecture and
+a compatible Linux distribution as ADS. Python virtual environments are not
+fully relocatable: scripts such as `backend/.venv/bin/uvicorn` may contain a
+shebang pointing to the build-time absolute path. The generated `app.sh` avoids
+that specific issue by starting Uvicorn with:
+
+```bash
+backend/.venv/bin/python -m uvicorn app.gateway.app:app ...
+```
+
+If `backend/.venv/bin/python` itself cannot run after extraction, rebuild the
+virtual environment on the target machine or let ADS install from
+`requirements.txt`.
+
 If ADS can install Python dependencies at startup, `app.sh` falls back to:
 
 ```bash

@@ -8,6 +8,7 @@ set -euo pipefail
 #
 # Optional:
 #   INCLUDE_ENV=1 bash deploy/ads/build-package.sh
+#   INCLUDE_POSTGRES=1 bash deploy/ads/build-package.sh
 #   PACKAGE_NAME=deerflow-ads-backend.tar.gz bash deploy/ads/build-package.sh
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd -P)"
@@ -15,6 +16,33 @@ DIST_DIR="$REPO_ROOT/dist"
 STAGE_DIR="$DIST_DIR/deerflow-ads-backend"
 PACKAGE_NAME="${PACKAGE_NAME:-deerflow-ads-backend.tar.gz}"
 PACKAGE_PATH="$DIST_DIR/$PACKAGE_NAME"
+
+uses_postgres_config() {
+  local config_path="$1"
+  [ -f "$config_path" ] || return 1
+
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[^[:space:]][^:]*:/ {
+      section=$0
+      sub(/:.*/, "", section)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", section)
+    }
+    section=="database" && /^[[:space:]]*backend:[[:space:]]*["'\'']?postgres["'\'']?[[:space:]]*(#.*)?$/ { found=1 }
+    section=="checkpointer" && /^[[:space:]]*type:[[:space:]]*["'\'']?postgres["'\'']?[[:space:]]*(#.*)?$/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$config_path"
+}
+
+includes_postgres_extra() {
+  if [ "${INCLUDE_POSTGRES:-0}" = "1" ]; then
+    return 0
+  fi
+  case " ${UV_EXTRAS:-} " in
+    *" postgres "*|*",postgres "*|*" postgres,"*|*",postgres,"*) return 0 ;;
+  esac
+  uses_postgres_config "$REPO_ROOT/config.yaml"
+}
 
 mkdir -p "$DIST_DIR"
 rm -rf "$STAGE_DIR"
@@ -66,9 +94,14 @@ if [ -z "$UV_BIN" ]; then
 fi
 
 if [ -n "$UV_BIN" ]; then
+  UV_EXPORT_ARGS=(export --frozen --no-dev --format requirements.txt --no-hashes --no-header --no-annotate)
+  if includes_postgres_extra; then
+    UV_EXPORT_ARGS+=(--extra postgres)
+    echo "Including postgres extra dependencies in requirements.txt"
+  fi
   (
     cd "$REPO_ROOT/backend"
-    "$UV_BIN" export --frozen --no-dev --format requirements.txt --no-hashes --no-header --no-annotate
+    "$UV_BIN" "${UV_EXPORT_ARGS[@]}"
   ) > "$STAGE_DIR/requirements.txt"
   # ADS only accepts registry-style requirement lines (package==version).
   # The local workspace package is shipped in backend/packages/harness and
@@ -109,3 +142,7 @@ echo "  $PACKAGE_PATH"
 echo
 echo "Upload and extract it in ADS, then run:"
 echo "  ./app.sh"
+echo
+echo "Postgres dependencies are included automatically when config.yaml uses postgres."
+echo "You can also force them with:"
+echo "  INCLUDE_POSTGRES=1 bash deploy/ads/build-package.sh"

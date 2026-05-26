@@ -24,6 +24,22 @@ On Windows/PowerShell without `rsync`, use:
 powershell -ExecutionPolicy Bypass -File deploy/ads/build-package.ps1
 ```
 
+If `config.yaml` uses PostgreSQL through either `database.backend: postgres`
+or `checkpointer.type: postgres`, the packaging scripts automatically include
+the `postgres` optional dependency group in the generated `requirements.txt`.
+You can also force PostgreSQL dependencies explicitly:
+
+```bash
+INCLUDE_POSTGRES=1 bash deploy/ads/build-package.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/ads/build-package.ps1 -IncludePostgres
+```
+
+The generated `requirements.txt` will then include packages such as
+`asyncpg`, `langgraph-checkpoint-postgres`, `psycopg`, and `psycopg-pool`.
+
 The output is:
 
 ```text

@@ -16,6 +16,8 @@ const withNextra = nextra({});
 
 /** @type {import("next").NextConfig} */
 const config = {
+  output:
+    process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   i18n: {
     locales: ["en", "zh"],
     defaultLocale: "en",

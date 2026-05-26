@@ -1,6 +1,7 @@
 param(
     [string]$PackageName = "deerflow-ads-backend.tar.gz",
-    [switch]$IncludeEnv
+    [switch]$IncludeEnv,
+    [switch]$IncludePostgres
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +11,20 @@ $RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\..")
 $DistDir = Join-Path $RepoRoot "dist"
 $StageDir = Join-Path $DistDir "deerflow-ads-backend"
 $PackagePath = Join-Path $DistDir $PackageName
+
+function Test-PostgresConfig {
+    param([string]$ConfigPath)
+
+    if (-not (Test-Path $ConfigPath)) {
+        return $false
+    }
+
+    $content = Get-Content -LiteralPath $ConfigPath -Raw
+    return (
+        $content -match '(?ms)^\s*database\s*:\s*.*?^\s*backend\s*:\s*[''"]?postgres[''"]?\s*(?:#.*)?$' -or
+        $content -match '(?ms)^\s*checkpointer\s*:\s*.*?^\s*type\s*:\s*[''"]?postgres[''"]?\s*(?:#.*)?$'
+    )
+}
 
 function Copy-RequiredFile {
     param(
@@ -101,7 +116,14 @@ if (-not $uv) {
 
 Push-Location (Join-Path $RepoRoot "backend")
 try {
-    $requirements = & $uv.Source export --frozen --no-dev --format requirements.txt --no-hashes --no-header --no-annotate
+    $configUsesPostgres = Test-PostgresConfig (Join-Path $RepoRoot "config.yaml")
+    $envIncludePostgres = $env:INCLUDE_POSTGRES -eq "1" -or $env:UV_EXTRAS -match "(^|[,\s])postgres($|[,\s])"
+    $exportArgs = @("export", "--frozen", "--no-dev", "--format", "requirements.txt", "--no-hashes", "--no-header", "--no-annotate")
+    if ($IncludePostgres -or $envIncludePostgres -or $configUsesPostgres) {
+        $exportArgs += @("--extra", "postgres")
+        Write-Host "Including postgres extra dependencies in requirements.txt"
+    }
+    $requirements = & $uv.Source @exportArgs
 } finally {
     Pop-Location
 }
@@ -134,3 +156,7 @@ Write-Host "  $PackagePath"
 Write-Host ""
 Write-Host "Upload and extract it in ADS, then run:"
 Write-Host "  ./app.sh"
+Write-Host ""
+Write-Host "Postgres dependencies are included automatically when config.yaml uses postgres."
+Write-Host "You can also force them with:"
+Write-Host "  powershell -ExecutionPolicy Bypass -File deploy/ads/build-package.ps1 -IncludePostgres"

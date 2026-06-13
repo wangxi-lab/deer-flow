@@ -21,8 +21,8 @@ function Test-PostgresConfig {
 
     $content = Get-Content -LiteralPath $ConfigPath -Raw
     return (
-        $content -match '(?ms)^\s*database\s*:\s*.*?^\s*backend\s*:\s*[''"]?postgres[''"]?\s*(?:#.*)?$' -or
-        $content -match '(?ms)^\s*checkpointer\s*:\s*.*?^\s*type\s*:\s*[''"]?postgres[''"]?\s*(?:#.*)?$'
+        $content -match '(?ms)^\s*database\s*:\s*.*?^\s*backend\s*:\s*[''"]?postgres(?:ql)?[''"]?\s*(?:#.*)?$' -or
+        $content -match '(?ms)^\s*checkpointer\s*:\s*.*?^\s*type\s*:\s*[''"]?postgres(?:ql)?[''"]?\s*(?:#.*)?$'
     )
 }
 
@@ -117,9 +117,12 @@ if (-not $uv) {
 Push-Location (Join-Path $RepoRoot "backend")
 try {
     $configUsesPostgres = Test-PostgresConfig (Join-Path $RepoRoot "config.yaml")
-    $envIncludePostgres = $env:INCLUDE_POSTGRES -eq "1" -or $env:UV_EXTRAS -match "(^|[,\s])postgres($|[,\s])"
+    $envIncludePostgres = $env:INCLUDE_POSTGRES -eq "1" -or
+        $env:UV_EXTRAS -match "(^|[,\s])postgres($|[,\s])" -or
+        -not [string]::IsNullOrWhiteSpace($env:DATABASE_URL)
+    $shouldIncludePostgres = $IncludePostgres -or $envIncludePostgres -or $configUsesPostgres
     $exportArgs = @("export", "--frozen", "--no-dev", "--format", "requirements.txt", "--no-hashes", "--no-header", "--no-annotate")
-    if ($IncludePostgres -or $envIncludePostgres -or $configUsesPostgres) {
+    if ($shouldIncludePostgres) {
         $exportArgs += @("--extra", "postgres")
         Write-Host "Including postgres extra dependencies in requirements.txt"
     }
@@ -139,6 +142,10 @@ $requirementsText = $requirements |
 $requirementsPath = Join-Path $StageDir "requirements.txt"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllLines($requirementsPath, [string[]]$requirementsText, $utf8NoBom)
+
+if ($shouldIncludePostgres -and -not ($requirementsText | Where-Object { $_ -match '^asyncpg==' })) {
+    throw "Postgres dependencies were requested, but generated requirements.txt does not contain asyncpg. Check uv export --extra postgres."
+}
 
 if (Test-Path $PackagePath) {
     Remove-Item -LiteralPath $PackagePath -Force

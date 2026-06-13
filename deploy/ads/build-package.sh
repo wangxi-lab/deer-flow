@@ -28,14 +28,17 @@ uses_postgres_config() {
       sub(/:.*/, "", section)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", section)
     }
-    section=="database" && /^[[:space:]]*backend:[[:space:]]*["'\'']?postgres["'\'']?[[:space:]]*(#.*)?$/ { found=1 }
-    section=="checkpointer" && /^[[:space:]]*type:[[:space:]]*["'\'']?postgres["'\'']?[[:space:]]*(#.*)?$/ { found=1 }
+    section=="database" && /^[[:space:]]*backend:[[:space:]]*["'\'']?postgres(ql)?["'\'']?[[:space:]]*(#.*)?$/ { found=1 }
+    section=="checkpointer" && /^[[:space:]]*type:[[:space:]]*["'\'']?postgres(ql)?["'\'']?[[:space:]]*(#.*)?$/ { found=1 }
     END { exit found ? 0 : 1 }
   ' "$config_path"
 }
 
 includes_postgres_extra() {
   if [ "${INCLUDE_POSTGRES:-0}" = "1" ]; then
+    return 0
+  fi
+  if [ -n "${DATABASE_URL:-}" ]; then
     return 0
   fi
   case " ${UV_EXTRAS:-} " in
@@ -112,6 +115,10 @@ if [ -n "$UV_BIN" ]; then
     -e '/^[[:space:]]*$/d' \
     "$STAGE_DIR/requirements.txt"
   rm -f "$STAGE_DIR/requirements.txt.bak"
+  if includes_postgres_extra && ! grep -q '^asyncpg==' "$STAGE_DIR/requirements.txt"; then
+    echo "Postgres dependencies were requested, but generated requirements.txt does not contain asyncpg. Check uv export --extra postgres." >&2
+    exit 1
+  fi
 else
   echo "uv is required to generate ADS requirements.txt from backend/uv.lock." >&2
   echo "Install uv or build the package on a machine that has uv available." >&2
